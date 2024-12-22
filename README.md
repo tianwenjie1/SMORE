@@ -49,7 +49,12 @@ We present the optimal hyperparameters for SMORE to replicate the results shown 
 ## Citation
 If you find SMORE useful in your research, please consider citing our [paper](https://arxiv.org/abs/2412.14978).
 ```
-
+@article{ong2024spectrum,
+  title={Spectrum-based Modality Representation Fusion Graph Convolutional Network for Multimodal Recommendation},
+  author={Ong, Rongqing Kenneth and Khong, Andy WH},
+  journal={arXiv preprint arXiv:2412.14978},
+  year={2024}
+}
 ```
 This code is made available solely for academic research purposes.
 
