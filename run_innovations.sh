@@ -1,12 +1,8 @@
 #!/bin/bash
 # =============================================================================
 # SMORE Innovation Points - Ablation Experiment Script
-# Dual GPU Server (GPU 0 & GPU 1), nohup background execution
-# =============================================================================
-# Usage:
-#   chmod +x run_innovations.sh
-#   ./run_innovations.sh          # run all experiments
-#   ./run_innovations.sh baby     # run only on baby dataset
+# Dual GPU Server (GPU 0 & GPU 1), 2 experiments in parallel at a time
+# Each GPU runs only ONE experiment at a time to avoid CUBLAS errors
 # =============================================================================
 
 set -e
@@ -36,14 +32,24 @@ if [ $# -gt 0 ]; then
     DATASETS=("$@")
 fi
 
+# ----------------------------- Build task queue ------------------------------
+TASKS=()
+for dataset in "${DATASETS[@]}"; do
+    for exp in "${EXPERIMENTS[@]}"; do
+        IFS='|' read -r exp_name extra_args <<< "$exp"
+        TASKS+=("${dataset}|${exp_name}|${extra_args}")
+    done
+done
+
+TOTAL=${#TASKS[@]}
+
 # ----------------------------- Print Summary ---------------------------------
 echo "============================================================"
 echo " SMORE Innovation Ablation Experiments"
 echo "============================================================"
 echo " Log directory : ${LOG_DIR}"
-echo " Datasets      : ${DATASETS[*]}"
-echo " Seed          : ${SEED}"
-echo " GPU 0 & GPU 1 parallel execution"
+echo " Total tasks   : ${TOTAL}"
+echo " Parallelism   : 2 (GPU 0 + GPU 1)"
 echo "------------------------------------------------------------"
 echo " Experiments:"
 for exp in "${EXPERIMENTS[@]}"; do
@@ -53,51 +59,85 @@ done
 echo "============================================================"
 echo ""
 
-# ----------------------------- Run Experiments --------------------------------
-GPU=0
-TOTAL=$((${#DATASETS[@]} * ${#EXPERIMENTS[@]}))
+# ----------------------------- Run with 2 GPU slots --------------------------
+GPU0_PID=""
+GPU1_PID=""
+GPU0_LOG=""
+GPU1_LOG=""
 COUNT=0
 
-for dataset in "${DATASETS[@]}"; do
-    for exp in "${EXPERIMENTS[@]}"; do
-        IFS='|' read -r exp_name extra_args <<< "$exp"
-
-        COUNT=$((COUNT + 1))
-
-        # Log file naming: SMORE_{dataset}_{experiment}_{timestamp}.log
-        LOG_FILE="${LOG_DIR}/SMORE_${dataset}_${exp_name}_seed${SEED}.log"
-
-        # Build command
-        CMD="cd src && nohup python main.py -m SMORE -d ${dataset} seed=${SEED} ${extra_args} > ../${LOG_FILE} 2>&1 &"
-
-        echo "[${COUNT}/${TOTAL}] GPU ${GPU} | ${dataset} | ${exp_name}"
-        echo "  Log: ${LOG_FILE}"
-
-        # Execute with CUDA_VISIBLE_DEVICES
-        CUDA_VISIBLE_DEVICES=${GPU} bash -c "${CMD}"
-
-        # Alternate GPU
-        GPU=$((1 - GPU))
+wait_for_slot() {
+    # Wait until at least one GPU slot is free
+    while true; do
+        SLOT_FREE=-1
+        if [ -z "$GPU0_PID" ] || ! kill -0 "$GPU0_PID" 2>/dev/null; then
+            SLOT_FREE=0
+            GPU0_PID=""
+        fi
+        if [ -z "$GPU1_PID" ] || ! kill -0 "$GPU1_PID" 2>/dev/null; then
+            SLOT_FREE=1
+            GPU1_PID=""
+        fi
+        if [ "$SLOT_FREE" -ne -1 ]; then
+            return $SLOT_FREE
+        fi
+        sleep 10
     done
+}
+
+launch_task() {
+    local GPU_ID=$1
+    local DATASET=$2
+    local EXP_NAME=$3
+    local EXTRA_ARGS=$4
+    local LOG_FILE="${LOG_DIR}/SMORE_${DATASET}_${EXP_NAME}_seed${SEED}.log"
+
+    echo "[${COUNT}/${TOTAL}] GPU ${GPU_ID} | ${DATASET} | ${EXP_NAME} | started at $(date +%H:%M:%S)"
+    echo "  Log: ${LOG_FILE}"
+
+    CUDA_VISIBLE_DEVICES=${GPU_ID} nohup python src/main.py -m SMORE -d ${DATASET} seed=${SEED} ${EXTRA_ARGS} > "${LOG_FILE}" 2>&1 &
+    local PID=$!
+
+    if [ "$GPU_ID" -eq 0 ]; then
+        GPU0_PID=$PID
+        GPU0_LOG=$LOG_FILE
+    else
+        GPU1_PID=$PID
+        GPU1_LOG=$LOG_FILE
+    fi
+}
+
+# Launch tasks, 2 at a time
+for task in "${TASKS[@]}"; do
+    COUNT=$((COUNT + 1))
+    IFS='|' read -r dataset exp_name extra_args <<< "$task"
+
+    wait_for_slot
+    GPU_ID=$?
+    launch_task $GPU_ID "$dataset" "$exp_name" "$extra_args"
+done
+
+# Wait for remaining tasks to finish
+echo ""
+echo "All tasks launched. Waiting for remaining to finish..."
+while true; do
+    RUNNING=0
+    [ -n "$GPU0_PID" ] && kill -0 "$GPU0_PID" 2>/dev/null && RUNNING=$((RUNNING + 1))
+    [ -n "$GPU1_PID" ] && kill -0 "$GPU1_PID" 2>/dev/null && RUNNING=$((RUNNING + 1))
+    if [ "$RUNNING" -eq 0 ]; then
+        break
+    fi
+    sleep 10
 done
 
 echo ""
 echo "============================================================"
-echo " All ${TOTAL} experiments launched in background!"
+echo " All ${TOTAL} experiments completed!"
 echo "============================================================"
 echo ""
-echo " Monitor progress:"
-echo "   tail -f ${LOG_DIR}/SMORE_baby_baseline_seed${SEED}.log"
-echo ""
-echo " Check all running jobs:"
-echo "   ps aux | grep 'main.py -m SMORE'"
-echo ""
-echo " Kill all SMORE experiments:"
-echo "   pkill -f 'main.py -m SMORE'"
-echo ""
-echo " View all logs summary:"
+echo " View results:"
 echo "   grep 'Best results' ${LOG_DIR}/*.log"
 echo ""
-echo " GPU status:"
-echo "   watch -n 5 nvidia-smi"
+echo " Check for errors:"
+echo "   grep -l 'Error' ${LOG_DIR}/*.log"
 echo "============================================================"
