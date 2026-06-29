@@ -7,10 +7,28 @@ learning_rate_scheduler:
 lambda_coeff: 0.9
 reg_weight: 1.0e-05
 learning_rate: 0.001
+
 cl_loss: 0.01
 temperature: 0.2
 image_knn_k: 40
 text_knn_k: 10
+
 dropout_rate: 0
+
+# ============================================================
+# Innovation Points
+# ============================================================
+# Innovation 1: Frequency Band Gating (频段门控)
+freq_band_gating: False
+
+# Innovation 2: Modality Reliability Gating (模态可靠性门控)
+modality_reliability_gating: False
+
+# Innovation 3: Modality Dropout Robust Training (模态Dropout鲁棒训练)
+modality_dropout_rate: 0.0
+
+# Innovation 4: Graph Edge Reweighting (图边重加权)
+graph_edge_reweighting: False
+
 hyper_parameters:
 - seed

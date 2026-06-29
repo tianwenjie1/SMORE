@@ -124,10 +124,100 @@ class SMORE(GeneralRecommender):
         self.image_complex_weight = nn.Parameter(torch.randn(1, self.embedding_dim // 2 + 1, 2, dtype=torch.float32))
         self.text_complex_weight = nn.Parameter(torch.randn(1, self.embedding_dim // 2 + 1, 2, dtype=torch.float32))
         self.fusion_complex_weight = nn.Parameter(torch.randn(1, self.embedding_dim // 2 + 1, 2, dtype=torch.float32))
-        
+
+        # ============================================================
+        # Innovation 1: Frequency Band Gating (频段门控)
+        # ============================================================
+        self.freq_band_gating = config.get('freq_band_gating', False)
+        if self.freq_band_gating:
+            freq_dim = self.embedding_dim // 2 + 1
+            self.image_band_gate = nn.Sequential(
+                nn.Linear(freq_dim, freq_dim),
+                nn.Sigmoid()
+            )
+            self.text_band_gate = nn.Sequential(
+                nn.Linear(freq_dim, freq_dim),
+                nn.Sigmoid()
+            )
+            self.fusion_band_gate = nn.Sequential(
+                nn.Linear(freq_dim, freq_dim),
+                nn.Sigmoid()
+            )
+
+        # ============================================================
+        # Innovation 2: Modality Reliability Gating (模态可靠性门控)
+        # ============================================================
+        self.modality_reliability_gating = config.get('modality_reliability_gating', False)
+        if self.modality_reliability_gating:
+            freq_dim = self.embedding_dim // 2 + 1
+            self.reliability_estimator = nn.Sequential(
+                nn.Linear(freq_dim * 3, freq_dim),
+                nn.ReLU(),
+                nn.Linear(freq_dim, 3),
+            )
+
+        # ============================================================
+        # Innovation 3: Modality Dropout Robust Training (模态Dropout鲁棒训练)
+        # ============================================================
+        self.modality_dropout_rate = config.get('modality_dropout_rate', 0.0)
+
+        # ============================================================
+        # Innovation 4: Graph Edge Reweighting (图边重加权)
+        # ============================================================
+        self.graph_edge_reweighting = config.get('graph_edge_reweighting', False)
+        if self.graph_edge_reweighting:
+            R_coo = self.interaction_matrix.tocoo()
+            self.register_buffer('ui_edge_user', torch.LongTensor(R_coo.row))
+            self.register_buffer('ui_edge_item', torch.LongTensor(R_coo.col))
+            self.n_edges = len(R_coo.row)
+            self.edge_weight_mlp = nn.Sequential(
+                nn.Linear(self.embedding_dim * 2, self.embedding_dim),
+                nn.ReLU(),
+                nn.Linear(self.embedding_dim, 1),
+                nn.Softplus()
+            )
+
 
     def pre_epoch_processing(self):
         pass
+
+    def _build_reweighted_adj(self, edge_weights):
+        """Build reweighted normalized adjacency matrix for Graph Edge Reweighting.
+
+        Args:
+            edge_weights: [n_edges] tensor of learned weights for user-item interactions
+
+        Returns:
+            Sparse tensor of reweighted symmetric-normalized adjacency
+        """
+        n = self.n_users + self.n_items
+
+        # User -> Item edges
+        ui_rows = self.ui_edge_user
+        ui_cols = self.ui_edge_item + self.n_users
+        ui_vals = edge_weights
+
+        # Item -> User edges (symmetric)
+        iu_rows = ui_cols
+        iu_cols = ui_rows
+        iu_vals = edge_weights
+
+        # Combine into full bipartite adjacency
+        all_rows = torch.cat([ui_rows, iu_rows])
+        all_cols = torch.cat([ui_cols, iu_cols])
+        all_vals = torch.cat([ui_vals, iu_vals])
+
+        indices = torch.stack([all_rows, all_cols])
+        adj = torch.sparse.FloatTensor(indices, all_vals, torch.Size([n, n]))
+
+        # Symmetric normalization: D^{-1/2} A D^{-1/2}
+        row_sum = torch.sparse.sum(adj, dim=1).to_dense()
+        d_inv_sqrt = torch.pow(row_sum + 1e-10, -0.5)
+        d_inv_sqrt[torch.isinf(d_inv_sqrt)] = 0.0
+
+        all_vals_norm = all_vals * d_inv_sqrt[all_rows] * d_inv_sqrt[all_cols]
+        norm_adj = torch.sparse.FloatTensor(indices, all_vals_norm, torch.Size([n, n]))
+        return norm_adj.coalesce()
 
     def max_pool_fusion(self):
         image_adj = self.image_original_adj.coalesce()
@@ -188,22 +278,55 @@ class SMORE(GeneralRecommender):
     def spectrum_convolution(self, image_embeds, text_embeds):
         """
         Modality Denoising & Cross-Modality Fusion
+        With optional Frequency Band Gating (Innovation 1) and
+        spectral statistics for Modality Reliability Gating (Innovation 2)
         """
-        image_fft = torch.fft.rfft(image_embeds, dim=1, norm='ortho')           
+        image_fft = torch.fft.rfft(image_embeds, dim=1, norm='ortho')
         text_fft = torch.fft.rfft(text_embeds, dim=1, norm='ortho')
 
-        image_complex_weight = torch.view_as_complex(self.image_complex_weight)   
+        # ============================================================
+        # Innovation 1: Frequency Band Gating
+        # Input-dependent gating: emphasize informative frequency bands,
+        # suppress noisy ones based on spectrum magnitude
+        # ============================================================
+        if self.freq_band_gating:
+            image_mag = torch.abs(image_fft)   # [n_items, freq_dim]
+            text_mag = torch.abs(text_fft)      # [n_items, freq_dim]
+
+            image_gate = self.image_band_gate(image_mag)   # [n_items, freq_dim]
+            text_gate = self.text_band_gate(text_mag)       # [n_items, freq_dim]
+
+            # Apply gates before complex weight multiplication
+            image_fft = image_fft * image_gate
+            text_fft = text_fft * text_gate
+
+        # ============================================================
+        # Innovation 2: Compute spectral statistics for reliability gating
+        # ============================================================
+        spectral_stats = None
+        if self.modality_reliability_gating:
+            image_mag = torch.abs(image_fft)
+            text_mag = torch.abs(text_fft)
+            fusion_mag = torch.abs(image_fft * text_fft)
+            spectral_stats = torch.cat([image_mag, text_mag, fusion_mag], dim=1)  # [n_items, 3*freq_dim]
+
+        image_complex_weight = torch.view_as_complex(self.image_complex_weight)
         text_complex_weight = torch.view_as_complex(self.text_complex_weight)
         fusion_complex_weight = torch.view_as_complex(self.fusion_complex_weight)
 
         #   Uni-modal Denoising
-        image_conv = torch.fft.irfft(image_fft * image_complex_weight, n=image_embeds.shape[1], dim=1, norm='ortho')    
+        image_conv = torch.fft.irfft(image_fft * image_complex_weight, n=image_embeds.shape[1], dim=1, norm='ortho')
         text_conv = torch.fft.irfft(text_fft * text_complex_weight, n=text_embeds.shape[1], dim=1, norm='ortho')
 
         #   Cross-modality fusion
-        fusion_conv = torch.fft.irfft(text_fft * image_fft * fusion_complex_weight, n=text_embeds.shape[1], dim=1, norm='ortho') 
-        
-        return image_conv, text_conv, fusion_conv
+        fusion_fft = image_fft * text_fft * fusion_complex_weight
+        if self.freq_band_gating:
+            fusion_mag = torch.abs(fusion_fft)
+            fusion_gate = self.fusion_band_gate(fusion_mag)
+            fusion_fft = fusion_fft * fusion_gate
+        fusion_conv = torch.fft.irfft(fusion_fft, n=text_embeds.shape[1], dim=1, norm='ortho')
+
+        return image_conv, text_conv, fusion_conv, spectral_stats
     
     def forward(self, adj, train=False):
         if self.v_feat is not None:
@@ -212,7 +335,7 @@ class SMORE(GeneralRecommender):
             text_feats = self.text_trs(self.text_embedding.weight)
 
         #   Spectrum Modality Fusion
-        image_conv, text_conv, fusion_conv = self.spectrum_convolution(image_feats, text_feats)
+        image_conv, text_conv, fusion_conv, spectral_stats = self.spectrum_convolution(image_feats, text_feats)
         image_item_embeds = torch.multiply(self.item_id_embedding.weight, self.gate_v(image_conv))
         text_item_embeds = torch.multiply(self.item_id_embedding.weight, self.gate_t(text_conv))
         fusion_item_embeds = torch.multiply(self.item_id_embedding.weight, self.gate_f(fusion_conv))
@@ -223,8 +346,23 @@ class SMORE(GeneralRecommender):
         ego_embeddings = torch.cat([user_embeds, item_embeds], dim=0)
         all_embeddings = [ego_embeddings]
 
+        # ============================================================
+        # Innovation 4: Graph Edge Reweighting
+        # Learn edge weights from multimodal signals, replacing uniform 0/1
+        # ============================================================
+        if self.graph_edge_reweighting and train:
+            user_repr = self.user_embedding.weight[self.ui_edge_user]
+            item_mod_repr = (image_item_embeds[self.ui_edge_item] +
+                             text_item_embeds[self.ui_edge_item] +
+                             fusion_item_embeds[self.ui_edge_item]) / 3.0
+            edge_input = torch.cat([user_repr, item_mod_repr], dim=1)
+            edge_weights = self.edge_weight_mlp(edge_input).squeeze(-1)
+            gcn_adj = self._build_reweighted_adj(edge_weights)
+        else:
+            gcn_adj = adj
+
         for i in range(self.n_ui_layers):
-            side_embeddings = torch.sparse.mm(adj, ego_embeddings)
+            side_embeddings = torch.sparse.mm(gcn_adj, ego_embeddings)
             ego_embeddings = side_embeddings
             all_embeddings += [ego_embeddings]
         all_embeddings = torch.stack(all_embeddings, dim=1)
@@ -262,6 +400,29 @@ class SMORE(GeneralRecommender):
         fusion_user_embeds = torch.sparse.mm(self.R, fusion_item_embeds)
         fusion_embeds = torch.cat([fusion_user_embeds, fusion_item_embeds], dim=0)
 
+        # ============================================================
+        # Innovation 3: Modality Dropout Robust Training
+        # Randomly drop entire modality views during training
+        # ============================================================
+        if self.training and self.modality_dropout_rate > 0:
+            drop_image = torch.rand(1).item() < self.modality_dropout_rate
+            drop_text = torch.rand(1).item() < self.modality_dropout_rate
+            drop_fusion = torch.rand(1).item() < self.modality_dropout_rate
+
+            # Ensure at least one modality is kept
+            if drop_image and drop_text and drop_fusion:
+                keep_idx = torch.randint(0, 3, (1,)).item()
+                drop_image = (keep_idx != 0)
+                drop_text = (keep_idx != 1)
+                drop_fusion = (keep_idx != 2)
+
+            if drop_image:
+                image_embeds = torch.zeros_like(image_embeds)
+            if drop_text:
+                text_embeds = torch.zeros_like(text_embeds)
+            if drop_fusion:
+                fusion_embeds = torch.zeros_like(fusion_embeds)
+
         #   Modality-aware Preference Module
         fusion_att_v, fusion_att_t = self.query_v(fusion_embeds), self.query_t(fusion_embeds)
         fusion_soft_v = self.softmax(fusion_att_v)
@@ -279,7 +440,22 @@ class SMORE(GeneralRecommender):
         agg_text_embeds = torch.multiply(text_prefer, agg_text_embeds)
         fusion_embeds = torch.multiply(fusion_prefer, fusion_embeds)
 
-        side_embeds = torch.mean(torch.stack([agg_image_embeds, agg_text_embeds, fusion_embeds]), dim=0) 
+        # ============================================================
+        # Innovation 2: Modality Reliability Gating
+        # Learn per-item modality reliability weights instead of uniform mean
+        # ============================================================
+        if self.modality_reliability_gating and spectral_stats is not None:
+            reliability_scores = self.reliability_estimator(spectral_stats)   # [n_items, 3]
+            reliability_weights = F.softmax(reliability_scores, dim=1)        # [n_items, 3]
+
+            # Users have no spectral features -> uniform weights
+            user_weights = torch.ones(self.n_users, 3, device=self.device) / 3.0
+            full_weights = torch.cat([user_weights, reliability_weights], dim=0)  # [n_users+n_items, 3]
+
+            stacked = torch.stack([agg_image_embeds, agg_text_embeds, fusion_embeds], dim=0)  # [3, n, dim]
+            side_embeds = torch.sum(stacked * full_weights.unsqueeze(-1).unsqueeze(0), dim=0)
+        else:
+            side_embeds = torch.mean(torch.stack([agg_image_embeds, agg_text_embeds, fusion_embeds]), dim=0)
 
         all_embeds = content_embeds + side_embeds
 
