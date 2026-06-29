@@ -1,0 +1,19 @@
+SMORE paper hyperparameters reproduction, seed=999
+
+Baby:
+Test Recall@10 = 0.0669
+Test Recall@20 = 0.1020
+Test NDCG@10   = 0.0362
+Test NDCG@20   = 0.0452
+
+Sports:
+Test Recall@10 = 0.0759
+Test Recall@20 = 0.1145
+Test NDCG@10   = 0.0407
+Test NDCG@20   = 0.0506
+
+Clothing:
+Test Recall@10 = 0.0656
+Test Recall@20 = 0.0968
+Test NDCG@10   = 0.0361
+Test NDCG@20   = 0.0440
