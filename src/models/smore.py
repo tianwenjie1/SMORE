@@ -128,7 +128,7 @@ class SMORE(GeneralRecommender):
         # ============================================================
         # Innovation 1: Frequency Band Gating (频段门控)
         # ============================================================
-        self.freq_band_gating = config.get('freq_band_gating', False)
+        self.freq_band_gating = config['freq_band_gating'] or False
         if self.freq_band_gating:
             freq_dim = self.embedding_dim // 2 + 1
             self.image_band_gate = nn.Sequential(
@@ -147,7 +147,7 @@ class SMORE(GeneralRecommender):
         # ============================================================
         # Innovation 2: Modality Reliability Gating (模态可靠性门控)
         # ============================================================
-        self.modality_reliability_gating = config.get('modality_reliability_gating', False)
+        self.modality_reliability_gating = config['modality_reliability_gating'] or False
         if self.modality_reliability_gating:
             freq_dim = self.embedding_dim // 2 + 1
             self.reliability_estimator = nn.Sequential(
@@ -159,12 +159,12 @@ class SMORE(GeneralRecommender):
         # ============================================================
         # Innovation 3: Modality Dropout Robust Training (模态Dropout鲁棒训练)
         # ============================================================
-        self.modality_dropout_rate = config.get('modality_dropout_rate', 0.0)
+        self.modality_dropout_rate = config['modality_dropout_rate'] if config['modality_dropout_rate'] is not None else 0.0
 
         # ============================================================
         # Innovation 4: Graph Edge Reweighting (图边重加权)
         # ============================================================
-        self.graph_edge_reweighting = config.get('graph_edge_reweighting', False)
+        self.graph_edge_reweighting = config['graph_edge_reweighting'] or False
         if self.graph_edge_reweighting:
             R_coo = self.interaction_matrix.tocoo()
             self.register_buffer('ui_edge_user', torch.LongTensor(R_coo.row))
