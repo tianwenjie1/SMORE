@@ -4,8 +4,6 @@
 # Single GPU, one experiment at a time, sequential execution
 # =============================================================================
 
-set -e
-
 # ----------------------------- Configuration ---------------------------------
 GPU_ID=0                          # Which GPU to use (0 or 1)
 LOG_DIR="logs_innovations_$(date +%Y%m%d_%H%M%S)"
@@ -63,7 +61,10 @@ for dataset in "${DATASETS[@]}"; do
 
         echo "[${COUNT}/${TOTAL}] GPU ${GPU_ID} | ${dataset} | ${exp_name} | started at $(date '+%Y-%m-%d %H:%M:%S')"
 
-        CUDA_VISIBLE_DEVICES=${GPU_ID} python src/main.py -m SMORE -d ${dataset} seed=${SEED} ${extra_args} > "${LOG_FILE}" 2>&1
+        cd src
+        CUDA_VISIBLE_DEVICES=${GPU_ID} python main.py -m SMORE -d ${dataset} seed=${SEED} ${extra_args} > "../${LOG_FILE}" 2>&1
+        EXIT_CODE=$?
+        cd ..
         EXIT_CODE=$?
 
         if [ ${EXIT_CODE} -eq 0 ]; then
