@@ -23,7 +23,28 @@ if __name__ == '__main__':
         'gpu_id': 0,
     }
 
-    args, _ = parser.parse_known_args()
+    args, unknown = parser.parse_known_args()
+
+    # Parse extra key=value style arguments, e.g. seed=999 freq_band_gating=True
+    def _parse_value(v):
+        if v.lower() == 'true':
+            return True
+        if v.lower() == 'false':
+            return False
+        try:
+            return int(v)
+        except ValueError:
+            pass
+        try:
+            return float(v)
+        except ValueError:
+            pass
+        return v
+
+    for token in unknown:
+        if '=' in token:
+            key, val = token.split('=', 1)
+            config_dict[key] = _parse_value(val)
 
     quick_start(model=args.model, dataset=args.dataset, config_dict=config_dict, save_model=True, mg=args.mg)
 
