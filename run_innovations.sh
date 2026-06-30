@@ -62,7 +62,7 @@ for dataset in "${DATASETS[@]}"; do
         echo "[${COUNT}/${TOTAL}] GPU ${GPU_ID} | ${dataset} | ${exp_name} | started at $(date '+%Y-%m-%d %H:%M:%S')"
 
         cd src
-        CUDA_VISIBLE_DEVICES=${GPU_ID} python main.py -m SMORE -d ${dataset} seed=${SEED} ${extra_args} > "../${LOG_FILE}" 2>&1
+        CUDA_VISIBLE_DEVICES=${GPU_ID} python main.py -m SMORE -d ${dataset} ${extra_args} > "../${LOG_FILE}" 2>&1
         EXIT_CODE=$?
         cd ..
         EXIT_CODE=$?
