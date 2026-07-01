@@ -211,11 +211,16 @@ class SMORE(GeneralRecommender):
         adj = torch.sparse.FloatTensor(indices, all_vals, torch.Size([n, n]))
 
         # Symmetric normalization: D^{-1/2} A D^{-1/2}
-        row_sum = torch.sparse.sum(adj, dim=1).to_dense()
-        d_inv_sqrt = torch.pow(row_sum + 1e-10, -0.5)
-        d_inv_sqrt[torch.isinf(d_inv_sqrt)] = 0.0
+        # Detach degree from autograd to avoid OOM on large graphs during backward.
+        # Gradients still flow through edge weights (all_vals); only the degree
+        # normalization is treated as fixed (standard approximation in edge-reweighting).
+        with torch.no_grad():
+            row_sum = torch.sparse.sum(adj, dim=1).to_dense()
+            d_inv_sqrt = torch.pow(row_sum + 1e-10, -0.5)
+            d_inv_sqrt[torch.isinf(d_inv_sqrt)] = 0.0
+            norm_factor = d_inv_sqrt[all_rows] * d_inv_sqrt[all_cols]
 
-        all_vals_norm = all_vals * d_inv_sqrt[all_rows] * d_inv_sqrt[all_cols]
+        all_vals_norm = all_vals * norm_factor
         norm_adj = torch.sparse.FloatTensor(indices, all_vals_norm, torch.Size([n, n]))
         return norm_adj.coalesce()
 
