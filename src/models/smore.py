@@ -453,7 +453,8 @@ class SMORE(GeneralRecommender):
             full_weights = torch.cat([user_weights, reliability_weights], dim=0)  # [n_users+n_items, 3]
 
             stacked = torch.stack([agg_image_embeds, agg_text_embeds, fusion_embeds], dim=0)  # [3, n, dim]
-            side_embeds = torch.sum(stacked * full_weights.unsqueeze(-1).unsqueeze(0), dim=0)
+            # full_weights: [n, 3] -> [3, n, 1] to match stacked [3, n, dim]
+            side_embeds = torch.sum(stacked * full_weights.t().unsqueeze(-1), dim=0)
         else:
             side_embeds = torch.mean(torch.stack([agg_image_embeds, agg_text_embeds, fusion_embeds]), dim=0)
 
