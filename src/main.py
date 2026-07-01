@@ -44,7 +44,11 @@ if __name__ == '__main__':
     for token in unknown:
         if '=' in token:
             key, val = token.split('=', 1)
-            config_dict[key] = _parse_value(val)
+            parsed = _parse_value(val)
+            # seed must stay a list for the grid-search loop in quick_start
+            if key == 'seed' and not isinstance(parsed, list):
+                parsed = [parsed]
+            config_dict[key] = parsed
 
     quick_start(model=args.model, dataset=args.dataset, config_dict=config_dict, save_model=True, mg=args.mg)
 
