@@ -1,0 +1,102 @@
+nohup: 忽略输入
+============================================================
+ SMORE Innovation Ablation Experiments
+============================================================
+ GPU           : 0
+ Log directory : logs_innovations_20260630_210810
+ Total tasks   : 24
+ Mode          : Sequential (one at a time)
+------------------------------------------------------------
+ Experiments:
+   baseline             
+   FBG                  freq_band_gating=True
+   MRG                  modality_reliability_gating=True
+   MDR                  modality_dropout_rate=0.1
+   GER                  graph_edge_reweighting=True
+   FBG+MRG              freq_band_gating=True modality_reliability_gating=True
+   FBG+MRG+MDR          freq_band_gating=True modality_reliability_gating=True modality_dropout_rate=0.1
+   FBG+MRG+MDR+GER      freq_band_gating=True modality_reliability_gating=True modality_dropout_rate=0.1 graph_edge_reweighting=True
+============================================================
+
+[1/24] GPU 0 | baby | baseline | started at 2026-06-30 21:08:10
+[1/24] baby | baseline | DONE ✓
+
+[2/24] GPU 0 | baby | FBG | started at 2026-06-30 21:17:48
+[2/24] baby | FBG | DONE ✓
+
+[3/24] GPU 0 | baby | MRG | started at 2026-06-30 21:26:24
+[3/24] baby | MRG | DONE ✓
+
+[4/24] GPU 0 | baby | MDR | started at 2026-06-30 21:26:47
+[4/24] baby | MDR | DONE ✓
+
+[5/24] GPU 0 | baby | GER | started at 2026-06-30 21:35:18
+[5/24] baby | GER | DONE ✓
+
+[6/24] GPU 0 | baby | FBG+MRG | started at 2026-06-30 21:52:05
+[6/24] baby | FBG+MRG | DONE ✓
+
+[7/24] GPU 0 | baby | FBG+MRG+MDR | started at 2026-06-30 21:52:28
+[7/24] baby | FBG+MRG+MDR | DONE ✓
+
+[8/24] GPU 0 | baby | FBG+MRG+MDR+GER | started at 2026-06-30 21:52:52
+[8/24] baby | FBG+MRG+MDR+GER | DONE ✓
+
+[9/24] GPU 0 | sports | baseline | started at 2026-06-30 21:53:15
+[9/24] sports | baseline | DONE ✓
+
+[10/24] GPU 0 | sports | FBG | started at 2026-06-30 22:16:48
+[10/24] sports | FBG | DONE ✓
+
+[11/24] GPU 0 | sports | MRG | started at 2026-06-30 22:38:57
+[11/24] sports | MRG | DONE ✓
+
+[12/24] GPU 0 | sports | MDR | started at 2026-06-30 22:39:55
+[12/24] sports | MDR | DONE ✓
+
+[13/24] GPU 0 | sports | GER | started at 2026-06-30 23:03:17
+[13/24] sports | GER | DONE ✓
+
+[14/24] GPU 0 | sports | FBG+MRG | started at 2026-06-30 23:04:20
+[14/24] sports | FBG+MRG | DONE ✓
+
+[15/24] GPU 0 | sports | FBG+MRG+MDR | started at 2026-06-30 23:05:17
+[15/24] sports | FBG+MRG+MDR | DONE ✓
+
+[16/24] GPU 0 | sports | FBG+MRG+MDR+GER | started at 2026-06-30 23:06:17
+[16/24] sports | FBG+MRG+MDR+GER | DONE ✓
+
+[17/24] GPU 0 | clothing | baseline | started at 2026-06-30 23:07:15
+[17/24] clothing | baseline | DONE ✓
+
+[18/24] GPU 0 | clothing | FBG | started at 2026-06-30 23:37:42
+[18/24] clothing | FBG | DONE ✓
+
+[19/24] GPU 0 | clothing | MRG | started at 2026-07-01 00:10:40
+[19/24] clothing | MRG | DONE ✓
+
+[20/24] GPU 0 | clothing | MDR | started at 2026-07-01 00:11:51
+[20/24] clothing | MDR | DONE ✓
+
+[21/24] GPU 0 | clothing | GER | started at 2026-07-01 00:45:32
+[21/24] clothing | GER | DONE ✓
+
+[22/24] GPU 0 | clothing | FBG+MRG | started at 2026-07-01 00:46:43
+[22/24] clothing | FBG+MRG | DONE ✓
+
+[23/24] GPU 0 | clothing | FBG+MRG+MDR | started at 2026-07-01 00:47:57
+[23/24] clothing | FBG+MRG+MDR | DONE ✓
+
+[24/24] GPU 0 | clothing | FBG+MRG+MDR+GER | started at 2026-07-01 00:49:13
+[24/24] clothing | FBG+MRG+MDR+GER | DONE ✓
+
+============================================================
+ All 24 experiments finished!
+============================================================
+
+ Results summary:
+   grep 'Best results' logs_innovations_20260630_210810/*.log
+
+ Errors check:
+   grep -l 'Error' logs_innovations_20260630_210810/*.log
+============================================================

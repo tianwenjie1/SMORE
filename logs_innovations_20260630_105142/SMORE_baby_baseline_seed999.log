@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/data/songfeiyang/wj/SMORE/src/main.py", line 28, in <module>
+    quick_start(model=args.model, dataset=args.dataset, config_dict=config_dict, save_model=True, mg=args.mg)
+  File "/data/songfeiyang/wj/SMORE/src/utils/quick_start.py", line 21, in quick_start
+    config = Config(model, dataset, config_dict, mg)
+  File "/data/songfeiyang/wj/SMORE/src/utils/configurator.py", line 65, in __init__
+    self._set_default_parameters()
+  File "/data/songfeiyang/wj/SMORE/src/utils/configurator.py", line 108, in _set_default_parameters
+    valid_metric = self.final_config_dict['valid_metric'].split('@')[0]
+KeyError: 'valid_metric'

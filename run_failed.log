@@ -1,0 +1,37 @@
+nohup: 忽略输入
+============================================================
+ Re-run FAILED experiments (14 tasks)
+ GPU: 0 | Log: logs_rerun_20260701_104909
+============================================================
+[1/14] GPU 0 | baby | MRG | started at 10:49:09
+[1/14] baby | MRG | DONE
+[2/14] GPU 0 | baby | FBG+MRG | started at 11:04:05
+[2/14] baby | FBG+MRG | DONE
+[3/14] GPU 0 | baby | FBG+MRG+MDR | started at 11:15:23
+[3/14] baby | FBG+MRG+MDR | DONE
+[4/14] GPU 0 | baby | FBG+MRG+MDR+GER | started at 11:23:39
+[4/14] baby | FBG+MRG+MDR+GER | DONE
+[5/14] GPU 0 | sports | MRG | started at 11:31:49
+[5/14] sports | MRG | DONE
+[6/14] GPU 0 | sports | GER | started at 11:59:45
+[6/14] sports | GER | FAILED (exit 1)
+[7/14] GPU 0 | sports | FBG+MRG | started at 12:00:47
+[7/14] sports | FBG+MRG | DONE
+[8/14] GPU 0 | sports | FBG+MRG+MDR | started at 12:31:09
+[8/14] sports | FBG+MRG+MDR | DONE
+[9/14] GPU 0 | sports | FBG+MRG+MDR+GER | started at 12:45:07
+[9/14] sports | FBG+MRG+MDR+GER | FAILED (exit 1)
+[10/14] GPU 0 | clothing | MRG | started at 12:46:03
+[10/14] clothing | MRG | DONE
+[11/14] GPU 0 | clothing | GER | started at 13:23:06
+[11/14] clothing | GER | FAILED (exit 1)
+[12/14] GPU 0 | clothing | FBG+MRG | started at 13:24:19
+[12/14] clothing | FBG+MRG | DONE
+[13/14] GPU 0 | clothing | FBG+MRG+MDR | started at 14:02:29
+[13/14] clothing | FBG+MRG+MDR | DONE
+[14/14] GPU 0 | clothing | FBG+MRG+MDR+GER | started at 14:29:39
+[14/14] clothing | FBG+MRG+MDR+GER | FAILED (exit 1)
+============================================================
+ All 14 re-runs finished!
+ grep 'Test:' logs_rerun_20260701_104909/*.log
+============================================================

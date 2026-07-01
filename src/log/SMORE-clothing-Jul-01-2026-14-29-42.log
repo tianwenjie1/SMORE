@@ -1,0 +1,179 @@
+Wed 01 Jul 2026 14:29:42 INFO ██Server: 	ysu-143-1
+Wed 01 Jul 2026 14:29:42 INFO ██Dir: 	/data/songfeiyang/wj/SMORE/src
+
+Wed 01 Jul 2026 14:29:42 INFO 
+gpu_id=0
+use_gpu=True
+seed=[999]
+data_path=../data/
+inter_splitting_label=x_label
+filter_out_cod_start_users=True
+is_multimodal_model=True
+checkpoint_dir=saved
+save_recommended_topk=True
+recommend_topk=recommend_topk/
+embedding_size=64
+weight_decay=0.0
+req_training=True
+epochs=1000
+stopping_step=20
+train_batch_size=2048
+learner=adam
+learning_rate=0.001
+learning_rate_scheduler=[0.96, 50]
+eval_step=1
+training_neg_sample_num=1
+use_neg_sampling=True
+use_full_sampling=False
+NEG_PREFIX=neg__
+USER_ID_FIELD=userID
+ITEM_ID_FIELD=itemID
+TIME_FIELD=timestamp
+field_separator=	
+metrics=['Recall', 'NDCG', 'Precision', 'MAP']
+topk=[5, 10, 20, 50]
+valid_metric=Recall@20
+eval_batch_size=4096
+use_raw_features=False
+max_txt_len=32
+max_img_size=256
+vocab_size=30522
+type_vocab_size=2
+hidden_size=4
+pad_token_id=0
+max_position_embeddings=512
+layer_norm_eps=1e-12
+hidden_dropout_prob=0.1
+end2end=False
+hyper_parameters=['seed', 'seed']
+inter_file_name=clothing.inter
+vision_feature_file=image_feat.npy
+text_feature_file=text_feat.npy
+user_graph_dict_file=user_graph_dict.npy
+n_ui_layers=3
+n_layers=1
+lambda_coeff=0.9
+reg_weight=1e-05
+cl_loss=0.01
+temperature=0.2
+image_knn_k=40
+text_knn_k=10
+dropout_rate=0
+freq_band_gating=True
+modality_reliability_gating=True
+modality_dropout_rate=0.1
+graph_edge_reweighting=True
+model=SMORE
+dataset=clothing
+valid_metric_bigger=True
+device=cuda
+
+
+Wed 01 Jul 2026 14:29:42 INFO clothing
+The number of users: 39387
+Average actions of users: 7.075354812501587
+The number of items: 23033
+Average actions of items: 12.099031823904832
+The number of inters: 278677
+The sparsity of the dataset: 99.969281661909%
+Wed 01 Jul 2026 14:29:42 INFO 
+====Training====
+clothing
+The number of users: 39387
+Average actions of users: 5.010231802371341
+The number of items: 23020
+Average actions of items: 8.572458731537793
+The number of inters: 197338
+The sparsity of the dataset: 99.97823530928596%
+Wed 01 Jul 2026 14:29:42 INFO 
+====Validation====
+clothing
+The number of users: 39387
+Average actions of users: 1.0193718739685682
+The number of items: 16702
+Average actions of items: 2.4039037241048975
+The number of inters: 40150
+The sparsity of the dataset: 99.99389670773579%
+Wed 01 Jul 2026 14:29:42 INFO 
+====Testing====
+clothing
+The number of users: 39387
+Average actions of users: 1.0457511361616778
+The number of items: 16803
+Average actions of items: 2.451288460393977
+The number of inters: 41189
+The sparsity of the dataset: 99.99377640221293%
+Wed 01 Jul 2026 14:29:57 INFO 
+
+=================================
+
+
+Wed 01 Jul 2026 14:29:57 INFO =========1/1: Parameters:['seed', 'seed']=(999, 999)=======
+Wed 01 Jul 2026 14:30:48 INFO SMORE(
+  (dropout): Dropout(p=0, inplace=False)
+  (user_embedding): Embedding(39387, 64)
+  (item_id_embedding): Embedding(23033, 64)
+  (image_embedding): Embedding(23033, 4096)
+  (text_embedding): Embedding(23033, 384)
+  (image_trs): Linear(in_features=4096, out_features=64, bias=True)
+  (text_trs): Linear(in_features=384, out_features=64, bias=True)
+  (softmax): Softmax(dim=-1)
+  (query_v): Sequential(
+    (0): Linear(in_features=64, out_features=64, bias=True)
+    (1): Tanh()
+    (2): Linear(in_features=64, out_features=64, bias=False)
+  )
+  (query_t): Sequential(
+    (0): Linear(in_features=64, out_features=64, bias=True)
+    (1): Tanh()
+    (2): Linear(in_features=64, out_features=64, bias=False)
+  )
+  (gate_v): Sequential(
+    (0): Linear(in_features=64, out_features=64, bias=True)
+    (1): Sigmoid()
+  )
+  (gate_t): Sequential(
+    (0): Linear(in_features=64, out_features=64, bias=True)
+    (1): Sigmoid()
+  )
+  (gate_f): Sequential(
+    (0): Linear(in_features=64, out_features=64, bias=True)
+    (1): Sigmoid()
+  )
+  (gate_image_prefer): Sequential(
+    (0): Linear(in_features=64, out_features=64, bias=True)
+    (1): Sigmoid()
+  )
+  (gate_text_prefer): Sequential(
+    (0): Linear(in_features=64, out_features=64, bias=True)
+    (1): Sigmoid()
+  )
+  (gate_fusion_prefer): Sequential(
+    (0): Linear(in_features=64, out_features=64, bias=True)
+    (1): Sigmoid()
+  )
+  (image_band_gate): Sequential(
+    (0): Linear(in_features=33, out_features=33, bias=True)
+    (1): Sigmoid()
+  )
+  (text_band_gate): Sequential(
+    (0): Linear(in_features=33, out_features=33, bias=True)
+    (1): Sigmoid()
+  )
+  (fusion_band_gate): Sequential(
+    (0): Linear(in_features=33, out_features=33, bias=True)
+    (1): Sigmoid()
+  )
+  (reliability_estimator): Sequential(
+    (0): Linear(in_features=99, out_features=33, bias=True)
+    (1): ReLU()
+    (2): Linear(in_features=33, out_features=3, bias=True)
+  )
+  (edge_weight_mlp): Sequential(
+    (0): Linear(in_features=128, out_features=64, bias=True)
+    (1): ReLU()
+    (2): Linear(in_features=64, out_features=1, bias=True)
+    (3): Softplus(beta=1, threshold=20)
+  )
+)
+Trainable parameters: 107526327
