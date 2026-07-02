@@ -70,7 +70,7 @@ launch() {
     local logfile="${LOG_DIR}/SMORE_${dataset}_${mname}_seed${seed}.log"
     echo "[$COUNT/$TOTAL] GPU $g | ${dataset} | ${mname} | seed=${seed} | started $(date '+%H:%M:%S')"
     # subshell isolates cwd so cd src doesn't race between launches
-    ( cd src && CUDA_VISIBLE_DEVICES=$g python main.py -m SMORE -d ${dataset} ${margs} seed=${seed} > "../${logfile}" 2>&1 ) &
+    ( cd src && CUDA_VISIBLE_DEVICES=$g python main.py -m SMORE -d ${dataset} ${margs} seed=${seed} gpu_id=$g > "../${logfile}" 2>&1 ) &
     if [ "$g" = "0" ]; then PID0=$!; else PID1=$!; fi
 }
 

@@ -69,7 +69,7 @@ launch() {
     local g=$1 seed=$2 dataset=$3 mode=$4 mname=$5 margs=$6
     local logfile="${LOG_DIR}/SMORE_${dataset}_${mname}_seed${seed}_${mode}.log"
     echo "[$COUNT/$TOTAL] GPU $g | ${dataset} | ${mname} | seed=${seed} | ${mode} | $(date '+%H:%M:%S')"
-    ( cd src && CUDA_VISIBLE_DEVICES=$g python main.py -m SMORE -d ${dataset} ${margs} seed=${seed} robust_eval_mode=${mode} > "../${logfile}" 2>&1 ) &
+    ( cd src && CUDA_VISIBLE_DEVICES=$g python main.py -m SMORE -d ${dataset} ${margs} seed=${seed} robust_eval_mode=${mode} gpu_id=$g > "../${logfile}" 2>&1 ) &
     if [ "$g" = "0" ]; then PID0=$!; else PID1=$!; fi
 }
 
