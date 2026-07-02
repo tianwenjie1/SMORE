@@ -30,5 +30,11 @@ modality_dropout_rate: 0.0
 # Innovation 4: Graph Edge Reweighting (图边重加权)
 graph_edge_reweighting: False
 
+# ============================================================
+# Robustness Evaluation (推理阶段模态扰动, 默认 normal 不扰动)
+# ============================================================
+robust_eval_mode: normal    # normal / drop_image / drop_text / noise_image / noise_text / noise_both
+robust_noise_std: 0.1
+
 hyper_parameters:
 - seed

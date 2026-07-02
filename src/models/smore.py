@@ -177,6 +177,12 @@ class SMORE(GeneralRecommender):
                 nn.Softplus()
             )
 
+        # ============================================================
+        # Robustness Evaluation (推理阶段模态扰动, 不影响训练)
+        # ============================================================
+        self.robust_eval_mode = config['robust_eval_mode'] or 'normal'
+        self.robust_noise_std = config['robust_noise_std'] if config['robust_noise_std'] is not None else 0.1
+
 
     def pre_epoch_processing(self):
         pass
@@ -338,6 +344,24 @@ class SMORE(GeneralRecommender):
             image_feats = self.image_trs(self.image_embedding.weight)
         if self.t_feat is not None:
             text_feats = self.text_trs(self.text_embedding.weight)
+
+        # ============================================================
+        # Robustness Evaluation: perturb modality features at inference only
+        # (training is never affected). Modes:
+        #   drop_image / drop_text  -> zero out the modality features
+        #   noise_image / noise_text / noise_both -> add Gaussian noise
+        # ============================================================
+        if not train and self.robust_eval_mode != 'normal':
+            mode = self.robust_eval_mode
+            std = self.robust_noise_std
+            if mode == 'drop_image' and self.v_feat is not None:
+                image_feats = torch.zeros_like(image_feats)
+            if mode == 'drop_text' and self.t_feat is not None:
+                text_feats = torch.zeros_like(text_feats)
+            if mode in ('noise_image', 'noise_both') and self.v_feat is not None:
+                image_feats = image_feats + torch.randn_like(image_feats) * std
+            if mode in ('noise_text', 'noise_both') and self.t_feat is not None:
+                text_feats = text_feats + torch.randn_like(text_feats) * std
 
         #   Spectrum Modality Fusion
         image_conv, text_conv, fusion_conv, spectral_stats = self.spectrum_convolution(image_feats, text_feats)
