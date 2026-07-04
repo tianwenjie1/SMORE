@@ -67,37 +67,35 @@ def parse_filename(fname):
         "robust_mode": "normal", "dropout_rate": "",
     }
 
-    # seed
-    m = re.search(r"seed(\d+)", base)
+    # 1. robust mode SUFFIX (modes contain underscores, so check suffix first)
+    #    check longer/multi-word modes before the bare 'normal'
+    mode_set = ["drop_image", "drop_text", "noise_image", "noise_text",
+                "noise_both", "normal"]
+    for mode in mode_set:
+        if base.endswith("_" + mode):
+            info["robust_mode"] = mode
+            base = base[:-(len(mode) + 1)]  # strip '_<mode>'
+            break
+
+    # 2. seed  _seed999
+    m = re.search(r"_seed(\d+)", base)
     if m:
         info["seed"] = m.group(1)
         base = base[:m.start()] + base[m.end():]
 
-    # dropout rate  rate0.2
-    m = re.search(r"rate([0-9.]+)", base)
+    # 3. dropout rate  _rate0.2
+    m = re.search(r"_rate([0-9.]+)", base)
     if m:
         info["dropout_rate"] = m.group(1)
         base = base[:m.start()] + base[m.end():]
 
-    # robust mode (trailing token after last _, one of the known modes)
-    mode_set = {
-        "normal", "drop_image", "drop_text",
-        "noise_image", "noise_text", "noise_both",
-    }
-    # split remaining on underscores, but method names contain no underscore
-    # except FBG+MDR uses '+'. So splitting on '_' is safe.
+    # 4. remaining: dataset_method (method names like baseline/FBG/MDR/FBG+MDR
+    #    contain no underscore, so split on '_')
     tokens = [t for t in base.split("_") if t]
-    # find a trailing mode token
-    if tokens and tokens[-1] in mode_set:
-        info["robust_mode"] = tokens[-1]
-        tokens = tokens[:-1]
-
-    # first token is dataset, rest joined is method
     if tokens:
         info["dataset"] = tokens[0]
         info["method"] = "_".join(tokens[1:]) if len(tokens) > 1 else ""
 
-    # cleanup any trailing/leading underscores introduced by removals
     for k in ("dataset", "method"):
         info[k] = info[k].strip("_")
     return info
@@ -118,19 +116,25 @@ def find_last_test_line(log_path):
 
 def main():
     ap = argparse.ArgumentParser(description="Parse SMORE logs to CSV.")
-    ap.add_argument("log_dir", help="directory containing SMORE_*.log files")
+    ap.add_argument("log_dirs", nargs="+", help="one or more dirs/globs containing SMORE_*.log")
     ap.add_argument("-o", "--output", default="smore_results.csv",
                     help="output CSV path (default: smore_results.csv)")
     args = ap.parse_args()
 
-    if not os.path.isdir(args.log_dir):
-        # also allow a glob pattern
-        files = sorted(glob.glob(args.log_dir))
-    else:
-        files = sorted(glob.glob(os.path.join(args.log_dir, "SMORE_*.log")))
+    # collect files from all given dirs/globs, dedupe by basename
+    files = []
+    seen = set()
+    for pat in args.log_dirs:
+        if os.path.isdir(pat):
+            pat = os.path.join(pat, "SMORE_*.log")
+        for fp in sorted(glob.glob(pat)):
+            bn = os.path.basename(fp)
+            if bn not in seen:
+                seen.add(bn)
+                files.append(fp)
 
     if not files:
-        print(f"[WARN] no SMORE_*.log found under {args.log_dir}")
+        print(f"[WARN] no SMORE_*.log found under {args.log_dirs}")
         return
 
     rows = []
