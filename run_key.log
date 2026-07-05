@@ -1,0 +1,61 @@
+nohup: 忽略输入
+============================================================
+ SMORE Key Innovations - Multi-Seed Evaluation
+============================================================
+ Log dir  : logs_keyexperiments_20260701_162733
+ Total    : 36 runs
+ GPUs     : 0 + 1 (one process each, parallel)
+ Methods  : baseline, FBG, MDR, FBG+MDR
+ Datasets : baby, sports, clothing
+ Seeds    : 999, 42, 2024
+============================================================
+
+[1/36] GPU 0 | baby | baseline | seed=999 | started 16:27:33
+[2/36] GPU 1 | baby | FBG | seed=999 | started 16:27:35
+[3/36] GPU 0 | baby | MDR | seed=999 | started 16:37:38
+[4/36] GPU 1 | baby | FBG+MDR | seed=999 | started 16:37:40
+[5/36] GPU 0 | sports | baseline | seed=999 | started 16:47:12
+[6/36] GPU 1 | sports | FBG | seed=999 | started 16:47:59
+[7/36] GPU 0 | sports | MDR | seed=999 | started 17:12:01
+[8/36] GPU 1 | sports | FBG+MDR | seed=999 | started 17:13:03
+[9/36] GPU 0 | clothing | baseline | seed=999 | started 17:37:21
+[10/36] GPU 1 | clothing | FBG | seed=999 | started 17:38:08
+[11/36] GPU 0 | clothing | MDR | seed=999 | started 18:07:40
+[12/36] GPU 1 | clothing | FBG+MDR | seed=999 | started 18:14:43
+[13/36] GPU 0 | baby | baseline | seed=42 | started 18:41:30
+[14/36] GPU 0 | baby | FBG | seed=42 | started 18:52:47
+[15/36] GPU 1 | baby | MDR | seed=42 | started 18:52:49
+[16/36] GPU 1 | baby | FBG+MDR | seed=42 | started 19:03:37
+[17/36] GPU 0 | sports | baseline | seed=42 | started 19:05:09
+[18/36] GPU 1 | sports | FBG | seed=42 | started 19:15:26
+[19/36] GPU 0 | sports | MDR | seed=42 | started 19:27:43
+[20/36] GPU 1 | sports | FBG+MDR | seed=42 | started 19:34:00
+[21/36] GPU 0 | clothing | baseline | seed=42 | started 19:53:18
+[22/36] GPU 1 | clothing | FBG | seed=42 | started 19:55:20
+[23/36] GPU 1 | clothing | MDR | seed=42 | started 20:29:23
+[24/36] GPU 0 | clothing | FBG+MDR | seed=42 | started 20:36:10
+[25/36] GPU 1 | baby | baseline | seed=2024 | started 21:02:42
+[26/36] GPU 1 | baby | FBG | seed=2024 | started 21:14:45
+[27/36] GPU 0 | baby | MDR | seed=2024 | started 21:16:47
+[28/36] GPU 1 | baby | FBG+MDR | seed=2024 | started 21:26:04
+[29/36] GPU 0 | sports | baseline | seed=2024 | started 21:27:21
+[30/36] GPU 1 | sports | FBG | seed=2024 | started 21:36:53
+[31/36] GPU 0 | sports | MDR | seed=2024 | started 21:48:11
+[32/36] GPU 1 | sports | FBG+MDR | seed=2024 | started 21:58:28
+[33/36] GPU 0 | clothing | baseline | seed=2024 | started 22:12:30
+[34/36] GPU 1 | clothing | FBG | seed=2024 | started 22:21:17
+[35/36] GPU 0 | clothing | MDR | seed=2024 | started 22:40:05
+[36/36] GPU 1 | clothing | FBG+MDR | seed=2024 | started 22:53:52
+
+All tasks launched. Waiting for the last ones to finish...
+
+============================================================
+ All 36 runs finished at 2026-07-01 23:26:25
+============================================================
+
+ Quick result summary:
+   for f in logs_keyexperiments_20260701_162733/SMORE_*.log; do
+     name=$(basename "$f" .log | sed 's/SMORE_//')
+     grep "Test:" "$f" | tail -1 | sed "s/^/$name | /"
+   done
+============================================================

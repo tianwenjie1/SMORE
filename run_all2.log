@@ -1,0 +1,253 @@
+nohup: 忽略输入
+============================================================
+ SMORE MDR Dropout Rate Search
+============================================================
+ Log dir  : logs_mdr_rate_20260702_112557
+ Total    : 48 runs
+ GPUs     : 0 + 1 (one process each, parallel)
+ Methods  : MDR, FBG+MDR
+ Datasets : sports clothing
+ Rates    : 0.05 0.1 0.2 0.3
+ Seeds    : 999 42 2024
+============================================================
+
+[1/48] GPU 0 | sports | MDR | rate=0.05 | seed=999 | 11:25:57
+[2/48] GPU 1 | sports | FBG+MDR | rate=0.05 | seed=999 | 11:25:59
+[3/48] GPU 1 | sports | MDR | rate=0.1 | seed=999 | 11:52:47
+[4/48] GPU 0 | sports | FBG+MDR | rate=0.1 | seed=999 | 11:53:34
+[5/48] GPU 1 | sports | MDR | rate=0.2 | seed=999 | 12:15:21
+[6/48] GPU 0 | sports | FBG+MDR | rate=0.2 | seed=999 | 12:19:08
+[7/48] GPU 1 | sports | MDR | rate=0.3 | seed=999 | 12:40:41
+[8/48] GPU 0 | sports | FBG+MDR | rate=0.3 | seed=999 | 12:44:58
+[9/48] GPU 0 | clothing | MDR | rate=0.05 | seed=999 | 13:06:01
+[10/48] GPU 1 | clothing | FBG+MDR | rate=0.05 | seed=999 | 13:07:03
+[11/48] GPU 0 | clothing | MDR | rate=0.1 | seed=999 | 13:40:21
+[12/48] GPU 1 | clothing | FBG+MDR | rate=0.1 | seed=999 | 13:50:23
+[13/48] GPU 0 | clothing | MDR | rate=0.2 | seed=999 | 14:15:10
+[14/48] GPU 1 | clothing | FBG+MDR | rate=0.2 | seed=999 | 14:30:13
+[15/48] GPU 0 | clothing | MDR | rate=0.3 | seed=999 | 14:55:15
+[16/48] GPU 1 | clothing | FBG+MDR | rate=0.3 | seed=999 | 15:06:17
+[17/48] GPU 0 | sports | MDR | rate=0.05 | seed=42 | 15:32:35
+[18/48] GPU 1 | sports | FBG+MDR | rate=0.05 | seed=42 | 15:46:37
+[19/48] GPU 0 | sports | MDR | rate=0.1 | seed=42 | 15:55:10
+[20/48] GPU 1 | sports | FBG+MDR | rate=0.1 | seed=42 | 16:07:57
+[21/48] GPU 0 | sports | MDR | rate=0.2 | seed=42 | 16:17:44
+[22/48] GPU 1 | sports | FBG+MDR | rate=0.2 | seed=42 | 16:28:01
+[23/48] GPU 0 | sports | MDR | rate=0.3 | seed=42 | 16:44:04
+[24/48] GPU 1 | sports | FBG+MDR | rate=0.3 | seed=42 | 16:52:51
+[25/48] GPU 0 | clothing | MDR | rate=0.05 | seed=42 | 17:10:23
+[26/48] GPU 1 | clothing | FBG+MDR | rate=0.05 | seed=42 | 17:20:41
+[27/48] GPU 0 | clothing | MDR | rate=0.1 | seed=42 | 17:41:43
+[28/48] GPU 1 | clothing | FBG+MDR | rate=0.1 | seed=42 | 17:49:30
+[29/48] GPU 0 | clothing | MDR | rate=0.2 | seed=42 | 18:14:18
+[30/48] GPU 1 | clothing | FBG+MDR | rate=0.2 | seed=42 | 18:23:50
+[31/48] GPU 0 | clothing | MDR | rate=0.3 | seed=42 | 18:50:53
+[32/48] GPU 1 | clothing | FBG+MDR | rate=0.3 | seed=42 | 18:59:40
+[33/48] GPU 0 | sports | MDR | rate=0.05 | seed=2024 | 19:33:28
+[34/48] GPU 1 | sports | FBG+MDR | rate=0.05 | seed=2024 | 19:39:30
+[35/48] GPU 0 | sports | MDR | rate=0.1 | seed=2024 | 19:55:48
+[36/48] GPU 1 | sports | FBG+MDR | rate=0.1 | seed=2024 | 20:01:35
+[37/48] GPU 0 | sports | MDR | rate=0.2 | seed=2024 | 20:19:07
+[38/48] GPU 1 | sports | FBG+MDR | rate=0.2 | seed=2024 | 20:24:39
+[39/48] GPU 0 | sports | MDR | rate=0.3 | seed=2024 | 20:45:12
+[40/48] GPU 1 | sports | FBG+MDR | rate=0.3 | seed=2024 | 20:48:59
+[41/48] GPU 0 | clothing | MDR | rate=0.05 | seed=2024 | 21:08:01
+[42/48] GPU 1 | clothing | FBG+MDR | rate=0.05 | seed=2024 | 21:15:19
+[43/48] GPU 0 | clothing | MDR | rate=0.1 | seed=2024 | 21:40:51
+[44/48] GPU 1 | clothing | FBG+MDR | rate=0.1 | seed=2024 | 21:45:38
+[45/48] GPU 0 | clothing | MDR | rate=0.2 | seed=2024 | 22:13:26
+[46/48] GPU 1 | clothing | FBG+MDR | rate=0.2 | seed=2024 | 22:17:28
+[47/48] GPU 0 | clothing | MDR | rate=0.3 | seed=2024 | 22:44:46
+[48/48] GPU 1 | clothing | FBG+MDR | rate=0.3 | seed=2024 | 22:51:03
+
+All tasks launched. Waiting for the last ones to finish...
+
+============================================================
+ All 48 rate-search runs finished at 2026-07-02 23:28:05
+============================================================
+ Parse results to CSV:
+   python scripts/parse_smore_results.py logs_mdr_rate_20260702_112557 -o results_mdr_rate.csv
+============================================================
+============================================================
+ SMORE Robustness Evaluation
+============================================================
+ Log dir  : logs_robustness_20260702_232805
+ Total    : 162 runs
+ GPUs     : 0 + 1 (one process each, parallel)
+ Methods  : baseline, MDR, FBG+MDR
+ Datasets : baby sports clothing
+ Seeds    : 999 42 2024
+ Modes    : normal drop_image drop_text noise_image noise_text noise_both
+============================================================
+
+[1/162] GPU 0 | baby | baseline | seed=999 | normal | 23:28:05
+[2/162] GPU 1 | baby | MDR | seed=999 | normal | 23:28:07
+[3/162] GPU 1 | baby | FBG+MDR | seed=999 | normal | 23:37:10
+[4/162] GPU 0 | baby | baseline | seed=999 | drop_image | 23:39:57
+[5/162] GPU 1 | baby | MDR | seed=999 | drop_image | 23:46:29
+[6/162] GPU 0 | baby | FBG+MDR | seed=999 | drop_image | 23:50:46
+[7/162] GPU 1 | baby | baseline | seed=999 | drop_text | 23:56:18
+[8/162] GPU 0 | baby | MDR | seed=999 | drop_text | 00:04:05
+[9/162] GPU 1 | baby | FBG+MDR | seed=999 | drop_text | 00:07:07
+[10/162] GPU 0 | baby | baseline | seed=999 | noise_image | 00:13:55
+[11/162] GPU 1 | baby | MDR | seed=999 | noise_image | 00:17:42
+[12/162] GPU 0 | baby | FBG+MDR | seed=999 | noise_image | 00:23:29
+[13/162] GPU 1 | baby | baseline | seed=999 | noise_text | 00:27:01
+[14/162] GPU 0 | baby | MDR | seed=999 | noise_text | 00:32:48
+[15/162] GPU 1 | baby | FBG+MDR | seed=999 | noise_text | 00:36:20
+[16/162] GPU 0 | baby | baseline | seed=999 | noise_both | 00:45:22
+[17/162] GPU 1 | baby | MDR | seed=999 | noise_both | 00:45:24
+[18/162] GPU 1 | baby | FBG+MDR | seed=999 | noise_both | 00:54:26
+[19/162] GPU 0 | sports | baseline | seed=999 | normal | 00:56:59
+[20/162] GPU 1 | sports | MDR | seed=999 | normal | 01:06:16
+[21/162] GPU 0 | sports | FBG+MDR | seed=999 | normal | 01:22:33
+[22/162] GPU 1 | sports | baseline | seed=999 | drop_image | 01:31:05
+[23/162] GPU 0 | sports | MDR | seed=999 | drop_image | 01:44:08
+[24/162] GPU 1 | sports | FBG+MDR | seed=999 | drop_image | 02:02:10
+[25/162] GPU 0 | sports | baseline | seed=999 | drop_text | 02:08:57
+[26/162] GPU 1 | sports | MDR | seed=999 | drop_text | 02:27:44
+[27/162] GPU 0 | sports | FBG+MDR | seed=999 | drop_text | 02:34:32
+[28/162] GPU 1 | sports | baseline | seed=999 | noise_image | 02:56:04
+[29/162] GPU 0 | sports | MDR | seed=999 | noise_image | 02:58:06
+[30/162] GPU 0 | sports | FBG+MDR | seed=999 | noise_image | 03:18:39
+[31/162] GPU 1 | sports | baseline | seed=999 | noise_text | 03:25:41
+[32/162] GPU 0 | sports | MDR | seed=999 | noise_text | 03:43:58
+[33/162] GPU 1 | sports | FBG+MDR | seed=999 | noise_text | 03:50:30
+[34/162] GPU 0 | sports | baseline | seed=999 | noise_both | 04:11:48
+[35/162] GPU 1 | sports | MDR | seed=999 | noise_both | 04:13:20
+[36/162] GPU 0 | sports | FBG+MDR | seed=999 | noise_both | 04:36:22
+[37/162] GPU 1 | clothing | baseline | seed=999 | normal | 04:40:39
+[38/162] GPU 0 | clothing | MDR | seed=999 | normal | 04:59:57
+[39/162] GPU 1 | clothing | FBG+MDR | seed=999 | normal | 05:16:29
+[40/162] GPU 0 | clothing | baseline | seed=999 | drop_image | 05:37:32
+[41/162] GPU 1 | clothing | MDR | seed=999 | drop_image | 05:57:04
+[42/162] GPU 0 | clothing | FBG+MDR | seed=999 | drop_image | 06:17:36
+[43/162] GPU 1 | clothing | baseline | seed=999 | drop_text | 06:42:54
+[44/162] GPU 0 | clothing | MDR | seed=999 | drop_text | 06:55:26
+[45/162] GPU 1 | clothing | FBG+MDR | seed=999 | drop_text | 07:31:14
+[46/162] GPU 0 | clothing | baseline | seed=999 | noise_image | 07:35:46
+[47/162] GPU 0 | clothing | MDR | seed=999 | noise_image | 08:07:04
+[48/162] GPU 1 | clothing | FBG+MDR | seed=999 | noise_image | 08:07:21
+[49/162] GPU 1 | clothing | baseline | seed=999 | noise_text | 08:45:24
+[50/162] GPU 0 | clothing | MDR | seed=999 | noise_text | 08:46:41
+[51/162] GPU 1 | clothing | FBG+MDR | seed=999 | noise_text | 09:12:43
+[52/162] GPU 0 | clothing | baseline | seed=999 | noise_both | 09:22:00
+[53/162] GPU 1 | clothing | MDR | seed=999 | noise_both | 09:52:48
+[54/162] GPU 0 | clothing | FBG+MDR | seed=999 | noise_both | 09:54:05
+[55/162] GPU 0 | baby | baseline | seed=42 | normal | 10:26:53
+[56/162] GPU 1 | baby | MDR | seed=42 | normal | 10:30:40
+[57/162] GPU 0 | baby | FBG+MDR | seed=42 | normal | 10:37:27
+[58/162] GPU 1 | baby | baseline | seed=42 | drop_image | 10:41:44
+[59/162] GPU 0 | baby | MDR | seed=42 | drop_image | 10:47:46
+[60/162] GPU 1 | baby | FBG+MDR | seed=42 | drop_image | 10:52:34
+[61/162] GPU 0 | baby | baseline | seed=42 | drop_text | 10:57:21
+[62/162] GPU 1 | baby | MDR | seed=42 | drop_text | 11:02:08
+[63/162] GPU 0 | baby | FBG+MDR | seed=42 | drop_text | 11:06:40
+[64/162] GPU 1 | baby | baseline | seed=42 | noise_image | 11:14:27
+[65/162] GPU 0 | baby | MDR | seed=42 | noise_image | 11:15:44
+[66/162] GPU 0 | baby | FBG+MDR | seed=42 | noise_image | 11:25:16
+[67/162] GPU 1 | baby | baseline | seed=42 | noise_text | 11:26:33
+[68/162] GPU 0 | baby | MDR | seed=42 | noise_text | 11:35:21
+[69/162] GPU 1 | baby | FBG+MDR | seed=42 | noise_text | 11:38:08
+[70/162] GPU 0 | baby | baseline | seed=42 | noise_both | 11:45:55
+[71/162] GPU 1 | baby | MDR | seed=42 | noise_both | 11:48:12
+[72/162] GPU 0 | baby | FBG+MDR | seed=42 | noise_both | 11:55:44
+[73/162] GPU 1 | sports | baseline | seed=42 | normal | 11:59:16
+[74/162] GPU 0 | sports | MDR | seed=42 | normal | 12:07:48
+[75/162] GPU 1 | sports | FBG+MDR | seed=42 | normal | 12:23:06
+[76/162] GPU 0 | sports | baseline | seed=42 | drop_image | 12:31:23
+[77/162] GPU 1 | sports | MDR | seed=42 | drop_image | 12:43:25
+[78/162] GPU 0 | sports | FBG+MDR | seed=42 | drop_image | 12:53:43
+[79/162] GPU 1 | sports | baseline | seed=42 | drop_text | 13:12:15
+[80/162] GPU 0 | sports | MDR | seed=42 | drop_text | 13:22:02
+[81/162] GPU 1 | sports | FBG+MDR | seed=42 | drop_text | 13:36:20
+[82/162] GPU 0 | sports | baseline | seed=42 | noise_image | 13:47:22
+[83/162] GPU 1 | sports | MDR | seed=42 | noise_image | 14:02:25
+[84/162] GPU 0 | sports | FBG+MDR | seed=42 | noise_image | 14:10:42
+[85/162] GPU 1 | sports | baseline | seed=42 | noise_text | 14:24:59
+[86/162] GPU 0 | sports | MDR | seed=42 | noise_text | 14:33:17
+[87/162] GPU 1 | sports | FBG+MDR | seed=42 | noise_text | 14:49:19
+[88/162] GPU 0 | sports | baseline | seed=42 | noise_both | 14:57:36
+[89/162] GPU 1 | sports | MDR | seed=42 | noise_both | 15:10:39
+[90/162] GPU 0 | sports | FBG+MDR | seed=42 | noise_both | 15:20:26
+[91/162] GPU 1 | clothing | baseline | seed=42 | normal | 15:30:43
+[92/162] GPU 0 | clothing | MDR | seed=42 | normal | 15:41:15
+[93/162] GPU 1 | clothing | FBG+MDR | seed=42 | normal | 16:07:48
+[94/162] GPU 0 | clothing | baseline | seed=42 | drop_image | 16:14:05
+[95/162] GPU 1 | clothing | MDR | seed=42 | drop_image | 16:42:53
+[96/162] GPU 0 | clothing | FBG+MDR | seed=42 | drop_image | 16:46:10
+[97/162] GPU 1 | clothing | baseline | seed=42 | drop_text | 17:20:43
+[98/162] GPU 0 | clothing | MDR | seed=42 | drop_text | 17:22:30
+[99/162] GPU 1 | clothing | FBG+MDR | seed=42 | drop_text | 17:54:02
+[100/162] GPU 0 | clothing | baseline | seed=42 | noise_image | 17:56:20
+[101/162] GPU 1 | clothing | MDR | seed=42 | noise_image | 18:29:37
+[102/162] GPU 0 | clothing | FBG+MDR | seed=42 | noise_image | 18:44:40
+[103/162] GPU 1 | clothing | baseline | seed=42 | noise_text | 19:05:12
+[104/162] GPU 0 | clothing | MDR | seed=42 | noise_text | 19:21:00
+[105/162] GPU 1 | clothing | FBG+MDR | seed=42 | noise_text | 19:37:32
+[106/162] GPU 0 | clothing | baseline | seed=42 | noise_both | 19:56:50
+[107/162] GPU 1 | clothing | MDR | seed=42 | noise_both | 20:15:22
+[108/162] GPU 0 | clothing | FBG+MDR | seed=42 | noise_both | 20:39:40
+[109/162] GPU 1 | baby | baseline | seed=2024 | normal | 20:47:12
+[110/162] GPU 1 | baby | MDR | seed=2024 | normal | 20:58:29
+[111/162] GPU 1 | baby | FBG+MDR | seed=2024 | normal | 21:09:46
+[112/162] GPU 1 | baby | baseline | seed=2024 | drop_image | 21:21:19
+[113/162] GPU 0 | baby | MDR | seed=2024 | drop_image | 21:31:36
+[114/162] GPU 1 | baby | FBG+MDR | seed=2024 | drop_image | 21:33:53
+[115/162] GPU 0 | baby | baseline | seed=2024 | drop_text | 21:45:10
+[116/162] GPU 1 | baby | MDR | seed=2024 | drop_text | 21:48:42
+[117/162] GPU 0 | baby | FBG+MDR | seed=2024 | drop_text | 21:58:45
+[118/162] GPU 1 | baby | baseline | seed=2024 | noise_image | 22:02:32
+[119/162] GPU 0 | baby | MDR | seed=2024 | noise_image | 22:13:19
+[120/162] GPU 1 | baby | FBG+MDR | seed=2024 | noise_image | 22:13:51
+[121/162] GPU 1 | baby | baseline | seed=2024 | noise_text | 22:24:23
+[122/162] GPU 0 | baby | MDR | seed=2024 | noise_text | 22:27:11
+[123/162] GPU 1 | baby | FBG+MDR | seed=2024 | noise_text | 22:36:13
+[124/162] GPU 0 | baby | baseline | seed=2024 | noise_both | 22:39:30
+[125/162] GPU 1 | baby | MDR | seed=2024 | noise_both | 22:49:17
+[126/162] GPU 0 | baby | FBG+MDR | seed=2024 | noise_both | 22:51:19
+[127/162] GPU 1 | sports | baseline | seed=2024 | normal | 23:00:06
+[128/162] GPU 0 | sports | MDR | seed=2024 | normal | 23:02:23
+[129/162] GPU 1 | sports | FBG+MDR | seed=2024 | normal | 23:22:56
+[130/162] GPU 0 | sports | baseline | seed=2024 | drop_image | 23:26:13
+[131/162] GPU 1 | sports | MDR | seed=2024 | drop_image | 23:45:15
+[132/162] GPU 0 | sports | FBG+MDR | seed=2024 | drop_image | 23:52:48
+[133/162] GPU 1 | sports | baseline | seed=2024 | drop_text | 00:07:35
+[134/162] GPU 0 | sports | MDR | seed=2024 | drop_text | 00:17:22
+[135/162] GPU 1 | sports | FBG+MDR | seed=2024 | drop_text | 00:29:39
+[136/162] GPU 0 | sports | baseline | seed=2024 | noise_image | 00:40:27
+[137/162] GPU 1 | sports | MDR | seed=2024 | noise_image | 00:55:29
+[138/162] GPU 0 | sports | FBG+MDR | seed=2024 | noise_image | 01:03:31
+[139/162] GPU 1 | sports | baseline | seed=2024 | noise_text | 01:20:04
+[140/162] GPU 0 | sports | MDR | seed=2024 | noise_text | 01:29:36
+[141/162] GPU 1 | sports | FBG+MDR | seed=2024 | noise_text | 01:41:23
+[142/162] GPU 0 | sports | baseline | seed=2024 | noise_both | 01:52:40
+[143/162] GPU 1 | sports | MDR | seed=2024 | noise_both | 02:02:43
+[144/162] GPU 0 | sports | FBG+MDR | seed=2024 | noise_both | 02:14:00
+[145/162] GPU 1 | clothing | baseline | seed=2024 | normal | 02:24:47
+[146/162] GPU 0 | clothing | MDR | seed=2024 | normal | 02:37:34
+[147/162] GPU 1 | clothing | FBG+MDR | seed=2024 | normal | 02:57:22
+[148/162] GPU 0 | clothing | baseline | seed=2024 | drop_image | 03:08:39
+[149/162] GPU 1 | clothing | MDR | seed=2024 | drop_image | 03:29:27
+[150/162] GPU 0 | clothing | FBG+MDR | seed=2024 | drop_image | 03:40:14
+[151/162] GPU 1 | clothing | baseline | seed=2024 | drop_text | 04:01:01
+[152/162] GPU 0 | clothing | MDR | seed=2024 | drop_text | 04:19:19
+[153/162] GPU 1 | clothing | FBG+MDR | seed=2024 | drop_text | 04:42:06
+[154/162] GPU 0 | clothing | baseline | seed=2024 | noise_image | 04:50:53
+[155/162] GPU 1 | clothing | MDR | seed=2024 | noise_image | 05:16:56
+[156/162] GPU 0 | clothing | FBG+MDR | seed=2024 | noise_image | 05:24:58
+[157/162] GPU 1 | clothing | baseline | seed=2024 | noise_text | 05:48:46
+[158/162] GPU 0 | clothing | MDR | seed=2024 | noise_text | 05:59:48
+[159/162] GPU 1 | clothing | FBG+MDR | seed=2024 | noise_text | 06:13:35
+[160/162] GPU 0 | clothing | baseline | seed=2024 | noise_both | 06:34:23
+[161/162] GPU 1 | clothing | MDR | seed=2024 | noise_both | 06:49:55
+[162/162] GPU 0 | clothing | FBG+MDR | seed=2024 | noise_both | 07:08:13
+
+All tasks launched. Waiting for the last ones to finish...
+
+============================================================
+ All 162 robustness runs finished at 2026-07-04 07:39:30
+============================================================
+ Parse results to CSV:
+   python scripts/parse_smore_results.py logs_robustness_20260702_232805 -o results_robustness.csv
+============================================================
