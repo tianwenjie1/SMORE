@@ -34,7 +34,7 @@ METRIC_KEYS = [
 ]
 
 OUTPUT_FIELDS = [
-    "dataset", "method", "seed", "robust_mode", "dropout_rate",
+    "dataset", "method", "seed", "robust_mode", "dropout_rate", "robust_noise_std",
     "recall@10", "recall@20", "recall@50",
     "ndcg@10", "ndcg@20", "ndcg@50",
     "precision@10", "map@10",
@@ -64,10 +64,17 @@ def parse_filename(fname):
 
     info = {
         "dataset": "", "method": "", "seed": "",
-        "robust_mode": "normal", "dropout_rate": "",
+        "robust_mode": "normal", "dropout_rate": "", "robust_noise_std": "",
     }
 
-    # 1. robust mode SUFFIX (modes contain underscores, so check suffix first)
+    # 1. noise std SUFFIX  _std0.2  (must be stripped before mode, since mode
+    #    is no longer the suffix when std is appended)
+    m = re.search(r"_std([0-9.]+)$", base)
+    if m:
+        info["robust_noise_std"] = m.group(1)
+        base = base[:m.start()]
+
+    # 2. robust mode SUFFIX (modes contain underscores, so check suffix first)
     #    check longer/multi-word modes before the bare 'normal'
     mode_set = ["drop_image", "drop_text", "noise_image", "noise_text",
                 "noise_both", "normal"]
@@ -77,13 +84,13 @@ def parse_filename(fname):
             base = base[:-(len(mode) + 1)]  # strip '_<mode>'
             break
 
-    # 2. seed  _seed999
+    # 3. seed  _seed999
     m = re.search(r"_seed(\d+)", base)
     if m:
         info["seed"] = m.group(1)
         base = base[:m.start()] + base[m.end():]
 
-    # 3. dropout rate  _rate0.2
+    # 4. dropout rate  _rate0.2
     m = re.search(r"_rate([0-9.]+)", base)
     if m:
         info["dropout_rate"] = m.group(1)
