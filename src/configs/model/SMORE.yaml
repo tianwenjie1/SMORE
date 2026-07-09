@@ -31,10 +31,16 @@ modality_dropout_rate: 0.0
 graph_edge_reweighting: False
 
 # ============================================================
-# Robustness Evaluation (推理阶段模态扰动, 默认 normal 不扰动)
+# Robustness / MQS Evaluation (推理阶段模态扰动, 默认 normal 不扰动)
 # ============================================================
 robust_eval_mode: normal    # normal / drop_image / drop_text / noise_image / noise_text / noise_both
+                            # / shuffle_image / shuffle_text / mismatch
+                            # / tail_noise_image / tail_noise_text / tail_noise_both
+                            # / tail_missing_image / tail_missing_text
+                            # / pop_missing_image / pop_missing_text
 robust_noise_std: 0.1
+robust_shift_ratio: 0.3     # fraction for shuffle / mismatch / pop-missing
+robust_tail_ratio: 0.3      # fraction of least-popular items counted as tail
 
 hyper_parameters:
 - seed

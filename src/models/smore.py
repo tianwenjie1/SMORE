@@ -179,9 +179,34 @@ class SMORE(GeneralRecommender):
 
         # ============================================================
         # Robustness Evaluation (推理阶段模态扰动, 不影响训练)
+        # MQS (Modality Quality Shift) protocol:
+        #   normal / drop_image / drop_text / noise_image / noise_text / noise_both
+        #   shuffle_image / shuffle_text / mismatch        (use robust_shift_ratio)
+        #   tail_noise_image / tail_noise_text / tail_noise_both / tail_missing_image / tail_missing_text
+        #   pop_missing_image / pop_missing_text            (popularity-correlated missing)
         # ============================================================
         self.robust_eval_mode = config['robust_eval_mode'] or 'normal'
         self.robust_noise_std = config['robust_noise_std'] if config['robust_noise_std'] is not None else 0.1
+        self.robust_shift_ratio = config['robust_shift_ratio'] if config['robust_shift_ratio'] is not None else 0.3
+        self.robust_tail_ratio = config['robust_tail_ratio'] if config['robust_tail_ratio'] is not None else 0.3
+
+        # tail item mask: bottom `robust_tail_ratio` items by interaction count
+        # (popularity = item degree in the user-item graph)
+        item_degree = np.array(self.interaction_matrix.sum(axis=0)).flatten().astype(np.int64)
+        n_items = self.n_items
+        n_tail = max(1, int(n_items * self.robust_tail_ratio))
+        # argsort ascending -> first n_tail are least popular
+        tail_idx = np.argsort(item_degree)[:n_tail]
+        tail_mask = np.zeros(n_items, dtype=bool)
+        tail_mask[tail_idx] = True
+        self.register_buffer('tail_mask', torch.from_numpy(tail_mask))
+        # popularity-based missing probability (colder -> higher miss prob),
+        # normalized so max prob == robust_shift_ratio
+        deg = np.maximum(item_degree, 1).astype(np.float64)
+        pop_miss_prob = (1.0 / np.log1p(deg))
+        if pop_miss_prob.max() > 0:
+            pop_miss_prob = pop_miss_prob / pop_miss_prob.max() * self.robust_shift_ratio
+        self.register_buffer('pop_miss_prob', torch.from_numpy(pop_miss_prob.astype(np.float32)))
 
 
     def pre_epoch_processing(self):
@@ -346,14 +371,17 @@ class SMORE(GeneralRecommender):
             text_feats = self.text_trs(self.text_embedding.weight)
 
         # ============================================================
-        # Robustness Evaluation: perturb modality features at inference only
-        # (training is never affected). Modes:
-        #   drop_image / drop_text  -> zero out the modality features
-        #   noise_image / noise_text / noise_both -> add Gaussian noise
+        # MQS Evaluation: perturb modality features at inference only
+        # (training is never affected). See __init__ for the full mode list.
         # ============================================================
         if not train and self.robust_eval_mode != 'normal':
             mode = self.robust_eval_mode
             std = self.robust_noise_std
+            ratio = self.robust_shift_ratio
+            n = image_feats.shape[0] if self.v_feat is not None else text_feats.shape[0]
+            device = image_feats.device if self.v_feat is not None else text_feats.device
+
+            # --- full drop / noise (existing) ---
             if mode == 'drop_image' and self.v_feat is not None:
                 image_feats = torch.zeros_like(image_feats)
             if mode == 'drop_text' and self.t_feat is not None:
@@ -362,6 +390,48 @@ class SMORE(GeneralRecommender):
                 image_feats = image_feats + torch.randn_like(image_feats) * std
             if mode in ('noise_text', 'noise_both') and self.t_feat is not None:
                 text_feats = text_feats + torch.randn_like(text_feats) * std
+
+            # --- feature shuffle: a `ratio` fraction of items get another item's feature ---
+            if mode in ('shuffle_image', 'shuffle_text', 'mismatch'):
+                n_swap = max(1, int(n * ratio))
+                perm = torch.randperm(n, device=device)
+                if mode == 'shuffle_image' and self.v_feat is not None:
+                    swapped = image_feats[perm]
+                    mask = torch.rand(n, device=device) < ratio
+                    image_feats = torch.where(mask.unsqueeze(1), swapped, image_feats)
+                elif mode == 'shuffle_text' and self.t_feat is not None:
+                    swapped = text_feats[perm]
+                    mask = torch.rand(n, device=device) < ratio
+                    text_feats = torch.where(mask.unsqueeze(1), swapped, text_feats)
+                elif mode == 'mismatch':  # image-text cross mismatch: item i's image paired with item perm[i]'s text context
+                    if self.v_feat is not None and self.t_feat is not None:
+                        swapped_img = image_feats[perm]
+                        mask = torch.rand(n, device=device) < ratio
+                        image_feats = torch.where(mask.unsqueeze(1), swapped_img, image_feats)
+
+            # --- tail-only noise / missing: only perturb tail items ---
+            if mode.startswith('tail_') and self.tail_mask is not None:
+                tm = self.tail_mask.to(device)
+                if mode in ('tail_noise_image', 'tail_noise_both') and self.v_feat is not None:
+                    noise = torch.randn_like(image_feats) * std
+                    image_feats = torch.where(tm.unsqueeze(1), image_feats + noise, image_feats)
+                if mode in ('tail_noise_text', 'tail_noise_both') and self.t_feat is not None:
+                    noise = torch.randn_like(text_feats) * std
+                    text_feats = torch.where(tm.unsqueeze(1), text_feats + noise, text_feats)
+                if mode == 'tail_missing_image' and self.v_feat is not None:
+                    image_feats = torch.where(tm.unsqueeze(1), torch.zeros_like(image_feats), image_feats)
+                if mode == 'tail_missing_text' and self.t_feat is not None:
+                    text_feats = torch.where(tm.unsqueeze(1), torch.zeros_like(text_feats), text_feats)
+
+            # --- popularity-correlated missing: colder items more likely to miss ---
+            if mode in ('pop_missing_image', 'pop_missing_text'):
+                prob = self.pop_miss_prob.to(device)
+                miss = torch.rand(n, device=device) < prob
+                if mode == 'pop_missing_image' and self.v_feat is not None:
+                    image_feats = torch.where(miss.unsqueeze(1), torch.zeros_like(image_feats), image_feats)
+                if mode == 'pop_missing_text' and self.t_feat is not None:
+                    text_feats = torch.where(miss.unsqueeze(1), torch.zeros_like(text_feats), text_feats)
+
 
         #   Spectrum Modality Fusion
         image_conv, text_conv, fusion_conv, spectral_stats = self.spectrum_convolution(image_feats, text_feats)

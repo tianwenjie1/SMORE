@@ -206,9 +206,46 @@
 ### 第 6 轮：rate=0.2 主表 + 噪声强度（2026-07-09）
 - 见上文第五节第 6 轮，结果待跑完后追加
 
+### 🔴 战略转向：从 trick 升级为问题级贡献（2026-07-09）
+
+**背景**：MDR/FBG 若直接作为"创新点"就是 trick（dropout + gate），二区必被拒。经评估决定升级论文定位。
+
+**新定位**：
+- 旧：基于 FBG 和 MDR 的 SMORE 改进方法（trick）
+- 新：**面向模态质量偏移（Modality Quality Shift, MQS）的鲁棒多模态推荐**（问题级贡献）
+
+**核心论点**：现有 MMRec 默认模态完整可靠同分布，但真实平台存在模态缺失/噪声/错配/尾部低质量/图文不一致。模型过度依赖强模态时，模态质量变化下崩溃。需学习对质量变化稳定的偏好表示。
+
+**MQS 五类定义**：
+1. Missing modality（缺失）
+2. Noisy modality（噪声）
+3. Mismatched modality（图文错配）
+4. Tail-quality degradation（尾部 item 模态更差）
+5. Modality dominance（过度依赖某模态）
+
+**方法升级**：MDR → **MQR（Modality Quality Regularization）**
+- 不只是随机 dropout，而是构造多个模态质量环境（clean / image-noise / text-noise / mismatch / tail-degraded）
+- 约束 clean 与 degraded 环境下偏好一致性（Preference Invariance Loss）
+- tail item 加权（w = 1/log(1+degree)）
+
+**命门消融（证明不是 trick）**：必须证明 MQR+不变性 ≫ 朴素 dropout + 朴素噪声增强
+
+**FBG 处理**：暂停主线。仅当强噪声（std=0.3/0.5、shuffle 50%）下 FBG+MQR 明显优于 MQR（>3-5%）才召回，否则降级到 appendix。
+
+**四阶段计划**：
+- P1：扩展 MQS 评测协议（noise 多档/shuffle/mismatch/tail-noise/pop-missing），跑 baseline SMORE → 证明问题存在
+- P2：实现 MQR（质量环境 + 偏好不变性 + tail-aware）
+- P3：命门消融（证明不是 dropout）
+- P4：外部基线 DGMRec / I3-MRec
+
+**止损判断**（P3 后）：
+- 继续条件：clean 不掉 / noise_both 提升>5% / tail Recall 提升>8% / MQR 明显超 dropout
+- 放弃条件：MQR≈dropout / 只一数据集有效 / clean 掉>2% / 强噪声只提升 1-2%
+
 <!-- 后续尝试追加在此下方 -->
 
 ---
+
 
 ## 九、关键文件索引
 
