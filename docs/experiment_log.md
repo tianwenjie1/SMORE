@@ -280,6 +280,20 @@
 
 这三类需要扩展 `topk_evaluator.py` + 在 eval 时跑 clean+degraded 双前向。**优先级：P1 baseline 扫描先跑（证明 Recall/NDCG 退化），PSS/tail 指标随后补**。
 
+### P1 启动运行（2026-07-09，新服务器 4×RTX3060 12GB）
+
+**环境**：miniconda + conda env `smore`（Python 3.10, torch 2.5.1+cu121, torch_scatter 2.1.2）
+**GPU**：用 GPU 2、3（留 0、1 给别人），脚本 `GPUS="2 3"` 默认
+**脚本**：`run_mqs_baseline.sh`（66 runs：baseline × 11 MQS 模式 × {sports,clothing} × 3 seed）
+**日志目录**：`logs_mqs_baseline_YYYYMMDD_HHMMSS/`，文件名 `SMORE_{ds}_baseline_seed{seed}_{mode}.log`
+**运行方式**：`nohup ./run_mqs_baseline.sh > run_mqs.log 2>&1 &`
+
+**前置验证**（必做）：单跑一个 baseline 确认代码+数据+12GB 显存 OK，再启动 66 个大规模。
+
+**待观察**：
+- SMORE 在 tail_noise_both / mismatch / pop_missing 下是否明显掉点（问题是否成立）
+- 12GB 显存是否够（MQR 双前向未在此跑，P1 是单前向 baseline，应无压力）
+
 <!-- 后续尝试追加在此下方 -->
 
 ---
