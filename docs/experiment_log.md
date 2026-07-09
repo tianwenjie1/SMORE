@@ -308,6 +308,29 @@
 
 **原则**：训练和 validation 都用 clean（robust_eval_mode=normal），checkpoint 由 clean valid 选；MQS 偏移只在 test 评估时施加。这才是"同一 clean-trained 模型在质量偏移下是否退化"。
 
+### P1.5：evaluator 扩展 — Tail 指标 + Coverage + PSS（2026-07-09）
+
+**动机**：smoke 测试显示 `tail_noise_both` 整体 Recall 几乎不掉（0.0740→0.0739）。这证明 **overall Recall 被头部推荐主导，抓不到 tail 退化**。必须补 Tail 指标 + PSS，否则 tail-MQS 会被整体指标误导成"问题不存在"。
+
+**实现**：
+- `smore.py`：新增 `item_degree` buffer（item 流行度）
+- `topk_evaluator.py`：`evaluate()` 新增指标并返回 `(metric_dict, topk_index)`
+  - **Tail Recall@K / Tail NDCG@K**：只在 test 正样本属于 tail item 的用户上算
+  - **Item Coverage@K** / **Tail Coverage@K** / **Tail Exposure@K**
+  - **Avg Popularity@K**（推荐 item 平均流行度，越低越不偏头部）
+- `trainer.py`：`evaluate()` 解包返回 dict；新增 `evaluate_with_topk()` 返回 topk；__init__ 从 model 注入 tail_mask/item_degree
+- `quick_start.py` `eval_only()`：
+  - **确定性扰动**：每个 (seed, mode) 固定 RNG seed，保证可复现 + 跨方法可比
+  - **PSS@K** = |TopK_clean ∩ TopK_shifted| / K（先跑 normal 存 topk，再跑各 shifted mode 算 overlap）
+- `parse_smore_results.py`：正则支持下划线指标名；OUTPUT_FIELDS 加 tail_recall/ndcg、coverage、pss 等列
+
+**三张表**（P1 跑完后用新 evaluator 对同 checkpoint eval-only 即可出，无需重训）：
+1. MQS overall degradation（overall Recall/NDCG 掉点）
+2. Tail vulnerability（Tail Recall/NDCG/Coverage 掉点）
+3. Preference instability（PSS@K，clean vs shifted 推荐列表漂移）
+
+**判断标准**：mismatch/shuffle 看表1；tail_* 看表2；所有 MQS 看表3。四类里 ≥2 类明显成立才继续 P3。
+
 <!-- 后续尝试追加在此下方 -->
 
 ---

@@ -31,6 +31,9 @@ class TopKEvaluator(object):
         self.metrics = config['metrics']
         self.topk = config['topk']
         self.save_recom_result = config['save_recommended_topk']
+        # tail / popularity info (set by Trainer from the model; None if N/A)
+        self.tail_mask = None
+        self.item_degree = None
         self._check_args()
 
     def collect(self, interaction, scores_tensor, full=False):
@@ -99,7 +102,56 @@ class TopKEvaluator(object):
             for k in self.topk:
                 key = '{}@{}'.format(metric, k)
                 metric_dict[key] = round(value[k - 1], 4)
-        return metric_dict
+
+        # ---- Tail + Coverage + Popularity metrics (MQS analysis) ----
+        self._calculate_tail_coverage_metrics(topk_index, pos_items, metric_dict)
+        return metric_dict, topk_index
+
+    def _calculate_tail_coverage_metrics(self, topk_index, pos_items, metric_dict):
+        """Add Tail Recall/NDCG, Item/Tail Coverage, Tail Exposure, Avg Popularity.
+        Only computed when tail_mask + item_degree are available."""
+        if self.tail_mask is None or self.item_degree is None:
+            return
+        n_users, max_k = topk_index.shape
+        tail = self.tail_mask  # [n_items] bool
+        deg = self.item_degree  # [n_items] float
+
+        # --- Tail Recall / NDCG: restrict ground truth to tail positives ---
+        tail_pos_items = [ [i for i in u_pos if tail[i]] for u_pos in pos_items ]
+        tail_pos_len = np.array([len(tl) for tl in tail_pos_items])
+        tail_bool = np.zeros_like(topk_index, dtype=bool)
+        for u, tl in enumerate(tail_pos_items):
+            if tl:
+                tl_set = set(tl)
+                tail_bool[u] = [i in tl_set for i in topk_index[u]]
+        valid = tail_pos_len > 0
+        for k in self.topk:
+            key_r = 'tail_recall@{}'.format(k)
+            key_n = 'tail_ndcg@{}'.format(k)
+            if valid.any():
+                from utils.metrics import metrics_dict
+                r = metrics_dict['recall'](tail_bool[valid][:, :k], tail_pos_len[valid])
+                n = metrics_dict['ndcg'](tail_bool[valid][:, :k], tail_pos_len[valid])
+                metric_dict[key_r] = round(float(r[k - 1]), 4)
+                metric_dict[key_n] = round(float(n[k - 1]), 4)
+            else:
+                metric_dict[key_r] = 0.0
+                metric_dict[key_n] = 0.0
+
+        # --- Coverage / Exposure / Avg Popularity over recommended items ---
+        rec_items = topk_index.reshape(-1)
+        for k in self.topk:
+            rec_k = topk_index[:, :k].reshape(-1)
+            # item coverage = unique recommended / all items
+            metric_dict['item_coverage@{}'.format(k)] = round(float(len(np.unique(rec_k))) / len(tail), 4)
+            # tail coverage = unique tail recommended / total tail items
+            n_tail_total = int(tail.sum())
+            uniq_tail_rec = np.unique(rec_k[tail[rec_k]])
+            metric_dict['tail_coverage@{}'.format(k)] = round(float(len(uniq_tail_rec)) / max(n_tail_total, 1), 4)
+            # tail exposure = fraction of recommended slots that are tail items
+            metric_dict['tail_exposure@{}'.format(k)] = round(float(tail[rec_k].mean()), 4)
+            # avg popularity = mean degree of recommended items
+            metric_dict['avg_popularity@{}'.format(k)] = round(float(deg[rec_k].mean()), 4)
 
     def _check_args(self):
         # Check metrics

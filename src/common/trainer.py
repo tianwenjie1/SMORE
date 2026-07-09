@@ -100,6 +100,13 @@ class Trainer(AbstractTrainer):
 
         self.eval_type = config['eval_type']
         self.evaluator = TopKEvaluator(config)
+        # inject tail-mask + item-degree from the model for Tail/Coverage metrics
+        tm = getattr(model, 'tail_mask', None)
+        if tm is not None:
+            self.evaluator.tail_mask = tm.detach().cpu().numpy()
+        idg = getattr(model, 'item_degree', None)
+        if idg is not None:
+            self.evaluator.item_degree = idg.detach().cpu().numpy()
 
         self.item_tensor = None
         self.tot_item_num = None
@@ -322,7 +329,22 @@ class Trainer(AbstractTrainer):
             # rank and get top-k
             _, topk_index = torch.topk(scores, max(self.config['topk']), dim=-1)  # nusers x topk
             batch_matrix_list.append(topk_index)
-        return self.evaluator.evaluate(batch_matrix_list, eval_data, is_test=is_test, idx=idx)
+        result, _topk = self.evaluator.evaluate(batch_matrix_list, eval_data, is_test=is_test, idx=idx)
+        return result
+
+    @torch.no_grad()
+    def evaluate_with_topk(self, eval_data):
+        """Like evaluate() but also returns the topk_index matrix [n_users, maxK]
+        (for PSS: comparing clean vs shifted recommendation lists)."""
+        self.model.eval()
+        batch_matrix_list = []
+        for batch_idx, batched_data in enumerate(eval_data):
+            scores = self.model.full_sort_predict(batched_data)
+            masked_items = batched_data[1]
+            scores[masked_items[0], masked_items[1]] = -1e10
+            _, topk_index = torch.topk(scores, max(self.config['topk']), dim=-1)
+            batch_matrix_list.append(topk_index)
+        return self.evaluator.evaluate(batch_matrix_list, eval_data, is_test=False)
 
     def plot_train_loss(self, show=True, save_path=None):
         r"""Plot the train loss in each epoch

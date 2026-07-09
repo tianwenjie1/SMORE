@@ -207,6 +207,8 @@ class SMORE(GeneralRecommender):
         if pop_miss_prob.max() > 0:
             pop_miss_prob = pop_miss_prob / pop_miss_prob.max() * self.robust_shift_ratio
         self.register_buffer('pop_miss_prob', torch.from_numpy(pop_miss_prob.astype(np.float32)))
+        # item degree (popularity) exposed for Coverage/AvgPopularity metrics
+        self.register_buffer('item_degree', torch.from_numpy(item_degree.astype(np.float32)))
 
         # ============================================================
         # MQR: Modality-Quality Preference Stabilization (training-side)

@@ -38,6 +38,9 @@ OUTPUT_FIELDS = [
     "recall@10", "recall@20", "recall@50",
     "ndcg@10", "ndcg@20", "ndcg@50",
     "precision@10", "map@10",
+    "tail_recall@10", "tail_recall@20", "tail_ndcg@10", "tail_ndcg@20",
+    "item_coverage@20", "tail_coverage@20", "tail_exposure@20", "avg_popularity@20",
+    "pss@10", "pss@20",
     "log_file",
 ]
 
@@ -45,8 +48,8 @@ OUTPUT_FIELDS = [
 def parse_metrics_from_line(line):
     """Extract metric: value pairs from a Test:/Valid: line."""
     out = {}
-    # pattern like  recall@10: 0.0660    ndcg@5: 0.0280
-    for m in re.finditer(r"([a-zA-Z]+@\d+):\s*([0-9.]+)", line):
+    # pattern like  recall@10: 0.0660  tail_recall@20: 0.03  pss@20: 0.8
+    for m in re.finditer(r"([a-zA-Z_]+@\d+):\s*([0-9.]+)", line):
         key = m.group(1).lower()
         try:
             out[key] = float(m.group(2))
@@ -170,19 +173,18 @@ def main():
                 row = dict(info)
                 row["robust_mode"] = mode
                 metrics = parse_metrics_from_line(line)
-                row.update({k: metrics.get(k, "") for k in METRIC_KEYS})
+                row.update(metrics)
                 row["_status"] = "ok"
                 rows.append(row)
             continue
         # fallback: single best-test line (mode from filename)
         line = find_last_test_line(fp)
         if line is None:
-            info.update({k: "" for k in METRIC_KEYS})
             info["_status"] = "no_test"
             rows.append(info)
             continue
         metrics = parse_metrics_from_line(line)
-        info.update({k: metrics.get(k, "") for k in METRIC_KEYS})
+        info.update(metrics)
         info["_status"] = "ok"
         rows.append(info)
 

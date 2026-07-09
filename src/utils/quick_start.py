@@ -154,10 +154,29 @@ def eval_only(model, dataset, config_dict, ckpt=None, eval_modes=None):
     trainer = get_trainer()(config, mdl, mg=False)
 
     logger.info('\n=================================\nMQS eval modes: {}\n'.format(eval_modes))
+    # PSS needs the clean (normal) recommendation list to compare against.
+    # Run normal first (deterministic), capture its topk_index, then each
+    # shifted mode with a FIXED per-(seed,mode) RNG so the perturbation is
+    # reproducible and comparable across methods.
+    clean_topk = None
     for mode in eval_modes:
+        # deterministic perturbation: same (seed, mode) -> same realization
+        import hashlib
+        mode_seed = (seed * 100003 + int(hashlib.md5(mode.encode()).hexdigest()[:8], 16)) % (2**31)
+        set_random_seed(mode_seed)
         mdl.robust_eval_mode = mode
-        # noise std / shift ratio / tail ratio already set from config; keep them
-        result = trainer.evaluate(test_data, is_test=True)
+        result, topk = trainer.evaluate_with_topk(test_data)
+        if mode == 'normal':
+            clean_topk = topk
+        # PSS@K = |TopK_clean ∩ TopK_shifted| / K (only if clean available & not normal)
+        if clean_topk is not None and mode != 'normal':
+            for k in config['topk']:
+                ck = clean_topk[:, :k]
+                sk = topk[:, :k]
+                # per-user set intersection size
+                overlap = [len(set(map(int, ck[u])) & set(map(int, sk[u]))) for u in range(ck.shape[0])]
+                pss = sum(overlap) / (ck.shape[0] * k)
+                result['pss@{}'.format(k)] = round(float(pss), 4)
         logger.info('>>>>> eval_mode={} | {}\n'.format(mode, dict2str(result)))
     logger.info('\n============Eval-only Over=====================\n')
 
