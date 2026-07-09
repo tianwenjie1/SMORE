@@ -331,6 +331,42 @@
 
 **判断标准**：mismatch/shuffle 看表1；tail_* 看表2；所有 MQS 看表3。四类里 ≥2 类明显成立才继续 P3。
 
+### 🔴 方向止损：SMORE + MQS/MQR 不作为二区主线（2026-07-09）
+
+**结论**：经 P1 严格验证（train-once-eval-many + Tail/PSS 指标），"模态质量偏移导致偏好不稳定"在 SMORE 上**不成立**，该方向停止作为 SCI 二区主线推进。
+
+**关键证据**（sports seed999，强扰动 std=2.0 / ratio=0.7）：
+
+| 扰动模式 | recall@20 | tail_coverage@20 | PSS@20 | 说明 |
+|---------|-----------|------------------|--------|------|
+| normal | 0.1118 | 0.2377 | — | 基准 |
+| noise_both (std=2.0) | 0.1126 | 0.1887 (-21%) | 0.8922 | 仅极端噪声有 tail 信号 |
+| mismatch (0.7) | 0.1118 | 0.2373 | **0.9992** | 70% 图文错配，排序几乎不变 |
+| shuffle_image (0.7) | 0.1118 | 0.2375 | **0.9992** | 70% 图像错配，打不动 |
+| tail_missing_image | 0.1119 | 0.1723 | 0.9499 | 仅 tail 置零有效 |
+
+**致命点**：
+1. mismatch / shuffle 70% 错配，PSS 仍 0.999 → SMORE 对模态特征错配**近乎免疫**
+2. 现实噪声（std=0.3）完全无信号，只有极端噪声（std=2.0）才有 tail coverage 下降
+3. overall Recall 不掉反升（0.1118→0.1126）→ 主任务无退化证据
+
+**根因**：SMORE 采用 `image_item_embeds = id_emb × gate_v(image_conv)` 门控融合，模态特征仅门控调制 ID 嵌入，最终排序由协同图信号主导。且 SMORE 论文本身即"频域模态去噪"——天生抗模态噪声。打一个为抗噪设计的模型，打不动其真正的弱点。
+
+**GPT Pro 止损条件全中**：mismatch 不掉点 / tail_noise 的 tail 指标不掉 / PSS 基本不变 / 问题依赖人造极端扰动。
+
+**决定**：
+- SMORE + MQS/MQR 方向**停止**，不再作为二区主线
+- 保留代码（MQS benchmark、MQR、evaluator、train-once-eval-many 流程）作为可复用资产
+- 不再投入大规模 GPU 实验
+
+**保留的可复用资产**：
+- 完整 SMORE 复现 + 4 创新点实现（FBG/MDR 有效，MRG/GER 弃用）
+- MQS 评测协议代码（9 种扰动模式）+ train-once-eval-many 框架
+- 扩展 evaluator（Tail Recall/NDCG、Coverage、PSS、确定性评估）
+- 3 轮有效实验结果（主实验/rate 搜索/鲁棒性，已有 MDR +1~2% + 噪声鲁棒苗头）
+
+**可选后续（最多 48h，未启动）**：clean long-tail forensic analysis——验证 SMORE 在 clean setting 下是否存在长尾内生弱点（Head/Medium/Tail Recall 差距、Tail Coverage、embedding 质量）。若有 ≥3 个强信号可考虑路 C；否则彻底停 SMORE 线。
+
 <!-- 后续尝试追加在此下方 -->
 
 ---
