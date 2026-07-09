@@ -144,6 +144,7 @@ def eval_only(model, dataset, config_dict, ckpt=None, eval_modes=None):
     mdl = get_model(config['model'])(config, train_data).to(config['device'])
 
     if ckpt:
+        import torch
         state = torch.load(ckpt, map_location=config['device'])
         mdl.load_state_dict(state)
         logger.info('Loaded checkpoint: ' + ckpt)
