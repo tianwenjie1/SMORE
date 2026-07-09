@@ -123,6 +123,10 @@ def eval_only(model, dataset, config_dict, ckpt=None, eval_modes=None):
 
     ds = RecDataset(config)
     train_dataset, valid_dataset, test_dataset = ds.split()
+    # inter_num is set lazily in RecDataset.__str__; ensure it exists on the
+    # split subsets (TrainDataLoader/EvalDataLoader read dataset.inter_num).
+    for _d in (train_dataset, valid_dataset, test_dataset):
+        _d.inter_num = len(_d.df)
     train_data = TrainDataLoader(config, train_dataset, batch_size=config['train_batch_size'], shuffle=True)
     test_data = EvalDataLoader(config, test_dataset, additional_dataset=train_dataset,
                                batch_size=config['eval_batch_size'])
