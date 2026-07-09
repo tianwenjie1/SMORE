@@ -80,7 +80,7 @@ for task in "${TASKS[@]}"; do
             echo "[$COUNT/$TOTAL] GPU $g | ${dataset} | ${mname} | seed=${seed} | train+evalscan | $(date '+%H:%M:%S')"
             ( cd src && \
               CUDA_VISIBLE_DEVICES=$g python main.py -m SMORE -d ${dataset} ${margs} seed=${seed} gpu_id=$g ckpt_tag=${mname} robust_eval_mode=normal > "../${logfile}" 2>&1 && \
-              CUDA_VISIBLE_DEVICES=$g python main.py -m SMORE -d ${dataset} seed=${seed} gpu_id=$g ${EVAL_ARGS} --eval-only --ckpt "../${ckpt}" --eval-modes ${MQS_MODES} >> "../${logfile}" 2>&1 ) &
+              CUDA_VISIBLE_DEVICES=$g python main.py -m SMORE -d ${dataset} seed=${seed} gpu_id=$g ${EVAL_ARGS} --eval-only --ckpt "${ckpt}" --eval-modes ${MQS_MODES} >> "../${logfile}" 2>&1 ) &
             PID[$slot]=$!
             break
         fi

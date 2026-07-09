@@ -66,10 +66,11 @@ for task in "${TASKS[@]}"; do
             logfile="${LOG_DIR}/SMORE_${dataset}_baseline_seed${seed}.log"
             ckpt="saved/SMORE-${dataset}-seed${seed}-baseline.pt"
             echo "[$COUNT/$TOTAL] GPU $g | ${dataset} | baseline | seed=${seed} | train+evalscan | $(date '+%H:%M:%S')"
-            # train clean (saves checkpoint), then eval-only scan on the same ckpt
+            # train clean (saves checkpoint under src/saved/), then eval-only scan
+            # on the same ckpt. Both run from src/, so ckpt path is relative to src/.
             ( cd src && \
               CUDA_VISIBLE_DEVICES=$g python main.py -m SMORE -d ${dataset} seed=${seed} gpu_id=$g ckpt_tag=baseline robust_eval_mode=normal > "../${logfile}" 2>&1 && \
-              CUDA_VISIBLE_DEVICES=$g python main.py -m SMORE -d ${dataset} seed=${seed} gpu_id=$g ckpt_tag=baseline ${EVAL_ARGS} --eval-only --ckpt "../${ckpt}" --eval-modes ${MQS_MODES} >> "../${logfile}" 2>&1 ) &
+              CUDA_VISIBLE_DEVICES=$g python main.py -m SMORE -d ${dataset} seed=${seed} gpu_id=$g ckpt_tag=baseline ${EVAL_ARGS} --eval-only --ckpt "${ckpt}" --eval-modes ${MQS_MODES} >> "../${logfile}" 2>&1 ) &
             PID[$slot]=$!
             break
         fi
