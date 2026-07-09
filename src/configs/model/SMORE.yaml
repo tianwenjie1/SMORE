@@ -42,5 +42,18 @@ robust_noise_std: 0.1
 robust_shift_ratio: 0.3     # fraction for shuffle / mismatch / pop-missing
 robust_tail_ratio: 0.3      # fraction of least-popular items counted as tail
 
+# ============================================================
+# MQR: Modality-Quality Preference Stabilization (training-side)
+# Builds a degraded view (sampled env: noise_both/mismatch/tail_noise_both)
+# and enforces preference stability between clean & degraded views.
+# Ablation switches: mqr_alpha=0 -> no degraded-BPR; mqr_beta=0 -> no PS loss.
+# ============================================================
+mqr_enabled: False
+mqr_alpha: 0.5              # weight of BPR on degraded view
+mqr_beta: 0.2               # weight of preference-stability (KL) loss
+mqr_tau: 1.0                # temperature for score softmax in PS loss
+mqr_tail_weight: True       # tail-sensitive weighting of PS loss
+train_noise_std: 0.0        # naive noise augmentation (ablation baseline, NOT MQR)
+
 hyper_parameters:
 - seed

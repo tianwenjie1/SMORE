@@ -242,6 +242,44 @@
 - 继续条件：clean 不掉 / noise_both 提升>5% / tail Recall 提升>8% / MQR 明显超 dropout
 - 放弃条件：MQR≈dropout / 只一数据集有效 / clean 掉>2% / 强噪声只提升 1-2%
 
+### P2：实现 MQR 训练机制（2026-07-09，代码就绪待跑）
+
+**定位升级**：从"MQR 训练策略"升级为"模态质量偏移下的偏好稳定学习（Modality-Quality Preference Stabilization）"，避免沦为 consistency trick。
+
+**实现**（`smore.py`）：
+- `_apply_mqs()`：扰动逻辑抽成独立方法，训练/推理复用
+- `forward(adj, train, degrade_env)`：新增 degrade_env 参数，训练时为 degraded view 采样质量环境
+- `calculate_loss`：clean forward + degraded forward（环境从 noise_both/mismatch/tail_noise_both 采样）
+  - BPR_clean（原有）
+  - BPR_degraded（权重 mqr_alpha）
+  - 偏好稳定性损失：KL(softmax(s_clean/τ) ‖ softmax(s_degraded/τ)) over {pos,neg}（权重 mqr_beta）
+  - tail-sensitive 加权：w_i = 1/log(2+degree_i)，归一化
+- 消融开关：`mqr_alpha=0`（仅 PS）、`mqr_beta=0`（仅 degraded-BPR）、`mqr_tail_weight`、`train_noise_std`（朴素噪声增强 baseline）
+
+**配置**（SMORE.yaml）：mqr_enabled/alpha/beta/tau/tail_weight/train_noise_std
+
+### P3：命门消融脚本（2026-07-09，代码就绪待跑）
+
+`run_ablation_mqr.sh`，7 方法 × 2 数据集 × 3 seed × 3 eval 模式 = 126 runs：
+1. baseline
+2. +dropout（朴素模态 dropout）
+3. +noise_aug（朴素噪声增强）
+4. +mqr_bpr（仅 degraded-BPR）
+5. +mqr_ps（仅偏好稳定性损失）
+6. +mqr_full（完整，无 tail 加权）
+7. +mqr_full_tail（完整方法）
+
+**命门判断**：完整方法在 MQS 下须明显优于 #2/#3（朴素 dropout/noise），否则仍是 trick。
+
+### ⚠️ 待补：P1 输出增强（evaluator 扩展）
+
+当前 evaluator 只输出 Recall/NDCG/Precision/MAP。GPT Pro 要求 P1 还需输出：
+- Tail NDCG / Tail Recall（head/medium/tail 分桶）
+- Item Coverage / Average Popularity / Gini（偏置指标）
+- **PSS（Preference Stability Score）**：clean 与 degraded 推荐列表的 Top-K overlap / KL
+
+这三类需要扩展 `topk_evaluator.py` + 在 eval 时跑 clean+degraded 双前向。**优先级：P1 baseline 扫描先跑（证明 Recall/NDCG 退化），PSS/tail 指标随后补**。
+
 <!-- 后续尝试追加在此下方 -->
 
 ---

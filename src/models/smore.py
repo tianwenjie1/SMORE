@@ -208,6 +208,26 @@ class SMORE(GeneralRecommender):
             pop_miss_prob = pop_miss_prob / pop_miss_prob.max() * self.robust_shift_ratio
         self.register_buffer('pop_miss_prob', torch.from_numpy(pop_miss_prob.astype(np.float32)))
 
+        # ============================================================
+        # MQR: Modality-Quality Preference Stabilization (training-side)
+        # Builds a degraded view each batch and enforces preference stability
+        # between clean and degraded views. NOT plain dropout: the degraded view
+        # samples a quality *environment* (noise/mismatch/tail-noise) and the
+        # stability loss acts on ranking scores, tail-weighted.
+        # ============================================================
+        self.mqr_enabled = config['mqr_enabled'] or False
+        self.mqr_alpha = config['mqr_alpha'] if config['mqr_alpha'] is not None else 0.5
+        self.mqr_beta = config['mqr_beta'] if config['mqr_beta'] is not None else 0.2
+        self.mqr_tau = config['mqr_tau'] if config['mqr_tau'] is not None else 1.0
+        self.mqr_tail_weight = config['mqr_tail_weight'] if config['mqr_tail_weight'] is not None else True
+        # naive noise augmentation (ablation baseline, NOT MQR): add noise to
+        # features during the clean training forward only.
+        self.train_noise_std = config['train_noise_std'] if config['train_noise_std'] is not None else 0.0
+        # item-degree-based stability weight: tail items get larger weight
+        deg_w = 1.0 / np.log1p(np.maximum(item_degree, 1).astype(np.float64) + 1.0)
+        deg_w = deg_w / deg_w.mean()
+        self.register_buffer('item_stab_weight', torch.from_numpy(deg_w.astype(np.float32)))
+
 
     def pre_epoch_processing(self):
         pass
@@ -364,74 +384,88 @@ class SMORE(GeneralRecommender):
 
         return image_conv, text_conv, fusion_conv, spectral_stats
     
-    def forward(self, adj, train=False):
+    def _apply_mqs(self, image_feats, text_feats, mode, std, ratio):
+        """Apply a modality quality shift to item features in-place semantics.
+        Returns (image_feats, text_feats) perturbed. Used both at inference
+        (eval MQS protocol) and during training (MQR degraded view)."""
+        if mode == 'normal':
+            return image_feats, text_feats
+        has_img = self.v_feat is not None
+        has_txt = self.t_feat is not None
+        n = image_feats.shape[0] if has_img else text_feats.shape[0]
+        device = image_feats.device if has_img else text_feats.device
+
+        # full drop / noise
+        if mode == 'drop_image' and has_img:
+            image_feats = torch.zeros_like(image_feats)
+        if mode == 'drop_text' and has_txt:
+            text_feats = torch.zeros_like(text_feats)
+        if mode in ('noise_image', 'noise_both') and has_img:
+            image_feats = image_feats + torch.randn_like(image_feats) * std
+        if mode in ('noise_text', 'noise_both') and has_txt:
+            text_feats = text_feats + torch.randn_like(text_feats) * std
+
+        # feature shuffle / mismatch
+        if mode in ('shuffle_image', 'shuffle_text', 'mismatch'):
+            perm = torch.randperm(n, device=device)
+            mask = torch.rand(n, device=device) < ratio
+            if mode == 'shuffle_image' and has_img:
+                image_feats = torch.where(mask.unsqueeze(1), image_feats[perm], image_feats)
+            elif mode == 'shuffle_text' and has_txt:
+                text_feats = torch.where(mask.unsqueeze(1), text_feats[perm], text_feats)
+            elif mode == 'mismatch' and has_img and has_txt:
+                image_feats = torch.where(mask.unsqueeze(1), image_feats[perm], image_feats)
+
+        # tail-only noise / missing
+        if mode.startswith('tail_') and self.tail_mask is not None:
+            tm = self.tail_mask.to(device)
+            if mode in ('tail_noise_image', 'tail_noise_both') and has_img:
+                image_feats = torch.where(tm.unsqueeze(1),
+                                          image_feats + torch.randn_like(image_feats) * std, image_feats)
+            if mode in ('tail_noise_text', 'tail_noise_both') and has_txt:
+                text_feats = torch.where(tm.unsqueeze(1),
+                                         text_feats + torch.randn_like(text_feats) * std, text_feats)
+            if mode == 'tail_missing_image' and has_img:
+                image_feats = torch.where(tm.unsqueeze(1), torch.zeros_like(image_feats), image_feats)
+            if mode == 'tail_missing_text' and has_txt:
+                text_feats = torch.where(tm.unsqueeze(1), torch.zeros_like(text_feats), text_feats)
+
+        # popularity-correlated missing
+        if mode in ('pop_missing_image', 'pop_missing_text'):
+            prob = self.pop_miss_prob.to(device)
+            miss = torch.rand(n, device=device) < prob
+            if mode == 'pop_missing_image' and has_img:
+                image_feats = torch.where(miss.unsqueeze(1), torch.zeros_like(image_feats), image_feats)
+            if mode == 'pop_missing_text' and has_txt:
+                text_feats = torch.where(miss.unsqueeze(1), torch.zeros_like(text_feats), text_feats)
+
+        return image_feats, text_feats
+
+    def forward(self, adj, train=False, degrade_env=None):
         if self.v_feat is not None:
             image_feats = self.image_trs(self.image_embedding.weight)
         if self.t_feat is not None:
             text_feats = self.text_trs(self.text_embedding.weight)
 
         # ============================================================
-        # MQS Evaluation: perturb modality features at inference only
-        # (training is never affected). See __init__ for the full mode list.
+        # MQS perturbation:
+        #   - inference (train=False): use self.robust_eval_mode (eval protocol)
+        #   - training degraded view (degrade_env set): use the sampled env (MQR)
         # ============================================================
-        if not train and self.robust_eval_mode != 'normal':
-            mode = self.robust_eval_mode
-            std = self.robust_noise_std
-            ratio = self.robust_shift_ratio
-            n = image_feats.shape[0] if self.v_feat is not None else text_feats.shape[0]
-            device = image_feats.device if self.v_feat is not None else text_feats.device
-
-            # --- full drop / noise (existing) ---
-            if mode == 'drop_image' and self.v_feat is not None:
-                image_feats = torch.zeros_like(image_feats)
-            if mode == 'drop_text' and self.t_feat is not None:
-                text_feats = torch.zeros_like(text_feats)
-            if mode in ('noise_image', 'noise_both') and self.v_feat is not None:
-                image_feats = image_feats + torch.randn_like(image_feats) * std
-            if mode in ('noise_text', 'noise_both') and self.t_feat is not None:
-                text_feats = text_feats + torch.randn_like(text_feats) * std
-
-            # --- feature shuffle: a `ratio` fraction of items get another item's feature ---
-            if mode in ('shuffle_image', 'shuffle_text', 'mismatch'):
-                n_swap = max(1, int(n * ratio))
-                perm = torch.randperm(n, device=device)
-                if mode == 'shuffle_image' and self.v_feat is not None:
-                    swapped = image_feats[perm]
-                    mask = torch.rand(n, device=device) < ratio
-                    image_feats = torch.where(mask.unsqueeze(1), swapped, image_feats)
-                elif mode == 'shuffle_text' and self.t_feat is not None:
-                    swapped = text_feats[perm]
-                    mask = torch.rand(n, device=device) < ratio
-                    text_feats = torch.where(mask.unsqueeze(1), swapped, text_feats)
-                elif mode == 'mismatch':  # image-text cross mismatch: item i's image paired with item perm[i]'s text context
-                    if self.v_feat is not None and self.t_feat is not None:
-                        swapped_img = image_feats[perm]
-                        mask = torch.rand(n, device=device) < ratio
-                        image_feats = torch.where(mask.unsqueeze(1), swapped_img, image_feats)
-
-            # --- tail-only noise / missing: only perturb tail items ---
-            if mode.startswith('tail_') and self.tail_mask is not None:
-                tm = self.tail_mask.to(device)
-                if mode in ('tail_noise_image', 'tail_noise_both') and self.v_feat is not None:
-                    noise = torch.randn_like(image_feats) * std
-                    image_feats = torch.where(tm.unsqueeze(1), image_feats + noise, image_feats)
-                if mode in ('tail_noise_text', 'tail_noise_both') and self.t_feat is not None:
-                    noise = torch.randn_like(text_feats) * std
-                    text_feats = torch.where(tm.unsqueeze(1), text_feats + noise, text_feats)
-                if mode == 'tail_missing_image' and self.v_feat is not None:
-                    image_feats = torch.where(tm.unsqueeze(1), torch.zeros_like(image_feats), image_feats)
-                if mode == 'tail_missing_text' and self.t_feat is not None:
-                    text_feats = torch.where(tm.unsqueeze(1), torch.zeros_like(text_feats), text_feats)
-
-            # --- popularity-correlated missing: colder items more likely to miss ---
-            if mode in ('pop_missing_image', 'pop_missing_text'):
-                prob = self.pop_miss_prob.to(device)
-                miss = torch.rand(n, device=device) < prob
-                if mode == 'pop_missing_image' and self.v_feat is not None:
-                    image_feats = torch.where(miss.unsqueeze(1), torch.zeros_like(image_feats), image_feats)
-                if mode == 'pop_missing_text' and self.t_feat is not None:
-                    text_feats = torch.where(miss.unsqueeze(1), torch.zeros_like(text_feats), text_feats)
-
+        if degrade_env is not None:
+            image_feats, text_feats = self._apply_mqs(
+                image_feats, text_feats, degrade_env,
+                self.robust_noise_std, self.robust_shift_ratio)
+        elif not train and self.robust_eval_mode != 'normal':
+            image_feats, text_feats = self._apply_mqs(
+                image_feats, text_feats, self.robust_eval_mode,
+                self.robust_noise_std, self.robust_shift_ratio)
+        elif train and self.train_noise_std > 0:
+            # naive noise augmentation (ablation baseline, independent of MQR)
+            if self.v_feat is not None:
+                image_feats = image_feats + torch.randn_like(image_feats) * self.train_noise_std
+            if self.t_feat is not None:
+                text_feats = text_feats + torch.randn_like(text_feats) * self.train_noise_std
 
         #   Spectrum Modality Fusion
         image_conv, text_conv, fusion_conv, spectral_stats = self.spectrum_convolution(image_feats, text_feats)
@@ -589,11 +623,17 @@ class SMORE(GeneralRecommender):
         cl_loss = -torch.log(pos_score / ttl_score)
         return torch.mean(cl_loss)
 
+    def _sample_mqr_env(self):
+        """Sample a modality-quality environment for the degraded view."""
+        import random
+        return random.choice(['noise_both', 'mismatch', 'tail_noise_both'])
+
     def calculate_loss(self, interaction):
         users = interaction[0]
         pos_items = interaction[1]
         neg_items = interaction[2]
 
+        # ----- clean view -----
         ua_embeddings, ia_embeddings, side_embeds, content_embeds = self.forward(
             self.norm_adj, train=True)
 
@@ -609,7 +649,45 @@ class SMORE(GeneralRecommender):
         cl_loss = self.InfoNCE(side_embeds_items[pos_items], content_embeds_items[pos_items], 0.2) + self.InfoNCE(
             side_embeds_users[users], content_embeds_user[users], 0.2)
 
-        return batch_mf_loss + batch_emb_loss + batch_reg_loss + self.cl_loss * cl_loss
+        total_loss = batch_mf_loss + batch_emb_loss + batch_reg_loss + self.cl_loss * cl_loss
+
+        # ----- MQR: Modality-Quality Preference Stabilization -----
+        # Build a degraded view by sampling a quality environment, then enforce
+        # (a) BPR on the degraded view, and (b) preference-stability (ranking
+        # consistency) between clean and degraded scores, tail-weighted.
+        if self.mqr_enabled:
+            env = self._sample_mqr_env()
+            ua_d, ia_d, _, _ = self.forward(self.norm_adj, train=True, degrade_env=env)
+
+            u_d = ua_d[users]
+            pos_d = ia_d[pos_items]
+            neg_d = ia_d[neg_items]
+
+            # (a) BPR on degraded view
+            pos_scores_d = torch.sum(torch.mul(u_d, pos_d), dim=1)
+            neg_scores_d = torch.sum(torch.mul(u_d, neg_d), dim=1)
+            bpr_degraded = -torch.mean(F.logsigmoid(pos_scores_d - neg_scores_d))
+
+            # (b) preference-stability loss: KL between clean & degraded score
+            # distributions over the candidate set {pos, neg}, per user.
+            pos_scores_c = torch.sum(torch.mul(u_g_embeddings, pos_i_g_embeddings), dim=1)
+            neg_scores_c = torch.sum(torch.mul(u_g_embeddings, neg_i_g_embeddings), dim=1)
+            s_c = torch.stack([pos_scores_c, neg_scores_c], dim=0)  # [2, B]
+            s_d = torch.stack([pos_scores_d, neg_scores_d], dim=0)  # [2, B]
+            logp_c = F.log_softmax(s_c / self.mqr_tau, dim=0)
+            p_d = F.softmax(s_d / self.mqr_tau, dim=0)
+            per_user_ps = F.kl_div(logp_c, p_d, reduction='none').sum(dim=0)  # [B]
+
+            # tail-sensitive weight: tail items (by pos_item degree) weighted more
+            if self.mqr_tail_weight:
+                w = self.item_stab_weight.to(per_user_ps.device)[pos_items]
+                ps_loss = (per_user_ps * w).mean()
+            else:
+                ps_loss = per_user_ps.mean()
+
+            total_loss = total_loss + self.mqr_alpha * bpr_degraded + self.mqr_beta * ps_loss
+
+        return total_loss
 
     def full_sort_predict(self, interaction):
         user = interaction[0]
