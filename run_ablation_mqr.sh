@@ -1,36 +1,29 @@
 #!/bin/bash
 # =============================================================================
-# P3: 命门消融 — prove MQR is NOT plain dropout / noise augmentation
-# Trains each variant once, evaluates under clean + key MQS scenarios.
+# P3: MQR ablation (train-once-eval-many, paper-grade)
+# Each method trained ONCE on clean data (clean validation selects checkpoint),
+# then the SAME checkpoint evaluated under key MQS modes.
 #
-# Methods (7):
-#   1. baseline                       (vanilla SMORE)
-#   2. +dropout                       (modality_dropout_rate=0.2, naive)
-#   3. +noise_aug                     (train_noise_std=0.3, naive)
-#   4. +mqr_bpr                       (mqr_enabled, beta=0 : degraded-BPR only)
-#   5. +mqr_ps                        (mqr_enabled, alpha=0 : PS-loss only)
-#   6. +mqr_full                      (mqr_enabled, alpha=0.5, beta=0.2, no tail)
-#   7. +mqr_full_tail                 (complete method, tail-weighted)
+# Methods (7): baseline / dropout / noise_aug / mqr_bpr / mqr_ps / mqr_full / mqr_full_tail
 # Datasets : sports, clothing
 # Seeds    : 999, 42, 2024
-# Eval     : normal + tail_noise_both(std0.3) + mismatch(r0.3)
-# Total    : 7 x 2 x 3 x 3 = 126 runs
+# Train    : 7 x 2 x 3 = 42 clean trainings (save checkpoint per method)
+# Eval     : 42 eval-only scans, each over 4 MQS modes on the test set
 # GPUs     : configurable via GPUS env var (default "2 3")
 # =============================================================================
-# Trim: set SEEDS=(999) and EVAL_MODES=("normal" "tail_noise_both") -> 28 runs
+# 命门: mqr_full_tail must clearly beat dropout & noise_aug under MQS modes,
+#       otherwise MQR is still a dropout trick.
 # =============================================================================
 
 LOG_DIR="logs_ablation_mqr_$(date +%Y%m%d_%H%M%S)"
-mkdir -p "$LOG_DIR"
+mkdir -p "$LOG_DIR" saved
 
 DATASETS=("sports" "clothing")
 SEEDS=(999 42 2024)
-# eval mode | extra eval args
-EVAL_MODES=(
-    "normal|"
-    "tail_noise_both|robust_noise_std=0.3"
-    "mismatch|robust_shift_ratio=0.3"
-)
+
+# MQS modes to evaluate on each checkpoint
+MQS_MODES="normal,tail_noise_both,mismatch,pop_missing_image"
+EVAL_ARGS="robust_noise_std=0.3 robust_shift_ratio=0.3 robust_tail_ratio=0.3"
 
 # method_name | train args
 METHODS=(
@@ -50,20 +43,18 @@ TASKS=()
 for seed in "${SEEDS[@]}"; do
     for dataset in "${DATASETS[@]}"; do
         for method in "${METHODS[@]}"; do
-            for ev in "${EVAL_MODES[@]}"; do
-                TASKS+=("${seed}|${dataset}|${method}|${ev}")
-            done
+            TASKS+=("${seed}|${dataset}|${method}")
         done
     done
 done
 TOTAL=${#TASKS[@]}
 
 echo "============================================================"
-echo " P3: MQR ablation (prove not-dropout)"
+echo " P3: MQR ablation (train-once-eval-many)"
 echo "============================================================"
 echo " Log dir  : ${LOG_DIR}"
-echo " Total    : ${TOTAL} runs | GPUs: ${GPUS[*]} (${NGPU}-way)"
-echo " Methods  : 7 | Eval modes: normal + tail_noise_both + mismatch"
+echo " Trainings: ${TOTAL} | each evals ${MQS_MODES}"
+echo " GPUs     : ${GPUS[*]} (${NGPU}-way)"
 echo "============================================================"
 
 declare -a PID
@@ -78,16 +69,18 @@ get_free_slot() {
 COUNT=0
 for task in "${TASKS[@]}"; do
     COUNT=$((COUNT + 1))
-    IFS='|' read -r seed dataset method ev <<< "$task"
+    IFS='|' read -r seed dataset method <<< "$task"
     IFS='|' read -r mname margs <<< "$method"
-    IFS='|' read -r emode eargs <<< "$ev"
     while true; do
         slot=$(get_free_slot)
         if [ "$slot" != "-1" ]; then
             g=${GPUS[$slot]}
-            logfile="${LOG_DIR}/SMORE_${dataset}_${mname}_seed${seed}_${emode}.log"
-            echo "[$COUNT/$TOTAL] GPU $g | ${dataset} | ${mname} | seed=${seed} | eval=${emode} | $(date '+%H:%M:%S')"
-            ( cd src && CUDA_VISIBLE_DEVICES=$g python main.py -m SMORE -d ${dataset} ${margs} seed=${seed} gpu_id=$g robust_eval_mode=${emode} ${eargs} > "../${logfile}" 2>&1 ) &
+            logfile="${LOG_DIR}/SMORE_${dataset}_${mname}_seed${seed}.log"
+            ckpt="saved/SMORE-${dataset}-seed${seed}-${mname}.pt"
+            echo "[$COUNT/$TOTAL] GPU $g | ${dataset} | ${mname} | seed=${seed} | train+evalscan | $(date '+%H:%M:%S')"
+            ( cd src && \
+              CUDA_VISIBLE_DEVICES=$g python main.py -m SMORE -d ${dataset} ${margs} seed=${seed} gpu_id=$g ckpt_tag=${mname} robust_eval_mode=normal > "../${logfile}" 2>&1 && \
+              CUDA_VISIBLE_DEVICES=$g python main.py -m SMORE -d ${dataset} seed=${seed} gpu_id=$g ${EVAL_ARGS} --eval-only --ckpt "../${ckpt}" --eval-modes ${MQS_MODES} >> "../${logfile}" 2>&1 ) &
             PID[$slot]=$!
             break
         fi
@@ -106,6 +99,6 @@ while true; do
     sleep 15
 done
 echo "============================================================"
-echo " All ${TOTAL} ablation runs finished at $(date '+%F %T')"
+echo " All ${TOTAL} train+evalscan finished at $(date '+%F %T')"
 echo " python scripts/parse_smore_results.py ${LOG_DIR}/ -o results_ablation_mqr.csv"
 echo "============================================================"

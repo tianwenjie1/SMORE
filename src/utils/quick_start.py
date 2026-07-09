@@ -106,3 +106,53 @@ def quick_start(model, dataset, config_dict, save_model=True, mg=False):
                                                                    dict2str(hyper_ret[best_test_idx][1]),
                                                                    dict2str(hyper_ret[best_test_idx][2])))
 
+
+def eval_only(model, dataset, config_dict, ckpt=None, eval_modes=None):
+    """Train-once-eval-many: load a CLEAN-trained checkpoint and evaluate it
+    under multiple MQS modes on the TEST set. No training, no early stopping
+    contamination — the same model is scored under every quality shift.
+
+    eval_modes: list of robust_eval_mode strings (e.g. ['normal','mismatch']).
+    """
+    from utils.misc import set_random_seed
+    config = Config(model, dataset, config_dict, mg=False)
+    init_logger(config)
+    logger = getLogger()
+    logger.info('██Eval-only MQS scan██')
+    logger.info('██Dir: \t' + os.getcwd() + '\n')
+
+    ds = RecDataset(config)
+    train_dataset, valid_dataset, test_dataset = ds.split()
+    train_data = TrainDataLoader(config, train_dataset, batch_size=config['train_batch_size'], shuffle=True)
+    test_data = EvalDataLoader(config, test_dataset, additional_dataset=train_dataset,
+                               batch_size=config['eval_batch_size'])
+
+    if eval_modes is None:
+        eval_modes = ['normal']
+
+    # build model with a fixed seed (deterministic init, then overwritten by ckpt)
+    if "seed" not in config['hyper_parameters']:
+        config['hyper_parameters'] = ['seed'] + config['hyper_parameters']
+    seed = config['seed']
+    if isinstance(seed, (list, tuple)):
+        seed = seed[0]
+    set_random_seed(seed)
+    mdl = get_model(config['model'])(config, train_data).to(config['device'])
+
+    if ckpt:
+        state = torch.load(ckpt, map_location=config['device'])
+        mdl.load_state_dict(state)
+        logger.info('Loaded checkpoint: ' + ckpt)
+    else:
+        logger.info('[WARN] no checkpoint given; evaluating random init (debug only)')
+
+    trainer = get_trainer()(config, mdl, mg=False)
+
+    logger.info('\n=================================\nMQS eval modes: {}\n'.format(eval_modes))
+    for mode in eval_modes:
+        mdl.robust_eval_mode = mode
+        # noise std / shift ratio / tail ratio already set from config; keep them
+        result = trainer.evaluate(test_data, is_test=True)
+        logger.info('>>>>> eval_mode={} | {}\n'.format(mode, dict2str(result)))
+    logger.info('\n============Eval-only Over=====================\n')
+

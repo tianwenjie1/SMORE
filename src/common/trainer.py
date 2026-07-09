@@ -279,6 +279,20 @@ class Trainer(AbstractTrainer):
                         self.logger.info(update_output)
                     self.best_valid_result = valid_result
                     self.best_test_upon_valid = test_result
+                    # save best checkpoint (selected on CLEAN validation) so the
+                    # same model can be re-evaluated under multiple MQS modes
+                    if saved:
+                        ckpt_dir = self.config['checkpoint_dir']
+                        os.makedirs(ckpt_dir, exist_ok=True)
+                        seed = self.config['seed']
+                        if isinstance(seed, (list, tuple)):
+                            seed = seed[0]
+                        tag = self.config['ckpt_tag'] or 'base'
+                        ckpt_path = os.path.join(ckpt_dir, '{}-{}-seed{}-{}.pt'.format(
+                            self.config['model'], self.config['dataset'], seed, tag))
+                        torch.save(self.model.state_dict(), ckpt_path)
+                        if verbose:
+                            self.logger.info('Saved checkpoint -> ' + ckpt_path)
 
                 if stop_flag:
                     stop_output = '+++++Finished training, best eval result in epoch %d' % \

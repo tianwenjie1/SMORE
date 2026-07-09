@@ -294,6 +294,20 @@
 - SMORE 在 tail_noise_both / mismatch / pop_missing 下是否明显掉点（问题是否成立）
 - 12GB 显存是否够（MQR 双前向未在此跑，P1 是单前向 baseline，应无压力）
 
+### 🔴 方法论修复：train-once-eval-many（2026-07-09）
+
+**问题**：原 `run_mqs_baseline.sh` / `run_ablation_mqr.sh` 每个 `robust_eval_mode` 都重新训练一次。而 `robust_eval_mode` 会污染 validation（早停基于扰动后 valid）→ 每个模式训出**不同 checkpoint**，不是"同一模型在质量偏移下退化"。审稿人一句即否。
+
+**修复**（论文级严谨）：
+- `trainer.py`：fit() 在 clean validation 创新高时存 `state_dict` 到 `saved/SMORE-{ds}-seed{seed}-{ckpt_tag}.pt`
+- `quick_start.py`：新增 `eval_only()` —— 加载 checkpoint，循环多个 MQS 模式在 test 集评估，不训练、不早停污染
+- `main.py`：新增 `--eval-only --ckpt --eval-modes`
+- `run_mqs_baseline.sh`：每个 (dataset,seed) 只训练 1 次 clean baseline → 同 checkpoint eval 11 个 MQS 模式（6 训练 + 6 evalscan，替代原 66 训练）
+- `run_ablation_mqr.sh`：每个 (method,dataset,seed) 训练 1 次 clean → 同 checkpoint eval 4 个 MQS 模式（42 训练 + 42 evalscan，替代原 126 训练）
+- `parse_smore_results.py`：支持 eval-only 日志（一个文件多行 `>>>>> eval_mode=X | metrics` → 多行 CSV）
+
+**原则**：训练和 validation 都用 clean（robust_eval_mode=normal），checkpoint 由 clean valid 选；MQS 偏移只在 test 评估时施加。这才是"同一 clean-trained 模型在质量偏移下是否退化"。
+
 <!-- 后续尝试追加在此下方 -->
 
 ---

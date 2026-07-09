@@ -121,6 +121,21 @@ def find_last_test_line(log_path):
     return last
 
 
+def find_eval_only_lines(log_path):
+    """Return list of (mode, line) for eval-only MQS scan lines:
+    '>>>>> eval_mode={mode} | recall@5: ...'"""
+    out = []
+    try:
+        with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                m = re.search(r"eval_mode=(\S+)\s*\|(.*)", line)
+                if m:
+                    out.append((m.group(1), m.group(2)))
+    except OSError:
+        pass
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description="Parse SMORE logs to CSV.")
     ap.add_argument("log_dirs", nargs="+", help="one or more dirs/globs containing SMORE_*.log")
@@ -147,16 +162,27 @@ def main():
     rows = []
     for fp in files:
         info = parse_filename(fp)
+        info["log_file"] = os.path.basename(fp)
+        # eval-only logs: one row per MQS mode (mode comes from the line)
+        eval_lines = find_eval_only_lines(fp)
+        if eval_lines:
+            for mode, line in eval_lines:
+                row = dict(info)
+                row["robust_mode"] = mode
+                metrics = parse_metrics_from_line(line)
+                row.update({k: metrics.get(k, "") for k in METRIC_KEYS})
+                row["_status"] = "ok"
+                rows.append(row)
+            continue
+        # fallback: single best-test line (mode from filename)
         line = find_last_test_line(fp)
         if line is None:
             info.update({k: "" for k in METRIC_KEYS})
-            info["log_file"] = os.path.basename(fp)
             info["_status"] = "no_test"
             rows.append(info)
             continue
         metrics = parse_metrics_from_line(line)
         info.update({k: metrics.get(k, "") for k in METRIC_KEYS})
-        info["log_file"] = os.path.basename(fp)
         info["_status"] = "ok"
         rows.append(info)
 
@@ -166,7 +192,6 @@ def main():
         writer.writeheader()
         for r in rows:
             r["status"] = r.pop("_status", "")
-            # only keep output fields + status
             row = {k: r.get(k, "") for k in OUTPUT_FIELDS}
             row["status"] = r["status"]
             writer.writerow(row)

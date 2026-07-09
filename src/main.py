@@ -18,6 +18,11 @@ if __name__ == '__main__':
     parser.add_argument('--model', '-m', type=str, default='SMORE', help='name of models')
     parser.add_argument('--dataset', '-d', type=str, default='baby', help='name of datasets')
     parser.add_argument('--mg', action='store_true', default=False)
+    parser.add_argument('--eval-only', action='store_true', default=False,
+                        help='load a checkpoint and evaluate under multiple MQS modes (no training)')
+    parser.add_argument('--ckpt', type=str, default=None, help='checkpoint path for --eval-only')
+    parser.add_argument('--eval-modes', type=str, default='normal',
+                        help='comma-separated robust_eval_mode list for --eval-only')
 
     config_dict = {
         'gpu_id': 0,
@@ -50,6 +55,12 @@ if __name__ == '__main__':
                 parsed = [parsed]
             config_dict[key] = parsed
 
-    quick_start(model=args.model, dataset=args.dataset, config_dict=config_dict, save_model=True, mg=args.mg)
+    if args.eval_only:
+        from utils.quick_start import eval_only
+        eval_modes = [m.strip() for m in args.eval_modes.split(',') if m.strip()]
+        eval_only(model=args.model, dataset=args.dataset, config_dict=config_dict,
+                  ckpt=args.ckpt, eval_modes=eval_modes)
+    else:
+        quick_start(model=args.model, dataset=args.dataset, config_dict=config_dict, save_model=True, mg=args.mg)
 
 
